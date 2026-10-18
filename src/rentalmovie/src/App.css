@@ -43,8 +43,15 @@
 
 /* --- Table ---------------------------------------------------------------- */
 
+.table-scroll {
+  /* Horizontal scroll stays inside the table on small screens. */
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
 .staff-table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -214,6 +221,11 @@ th.actions-col {
   border-radius: 6px;
   font-size: 0.95rem;
   font-weight: 400;
+  /* Constrain selects with long intrinsic content (e.g. 600+ addresses). */
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .form-row {
@@ -245,6 +257,11 @@ th.actions-col {
 }
 
 /* --- Feedback ------------------------------------------------------------- */
+
+.results-stale {
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
 
 .error-message {
   background: #fee2e2;

@@ -49,44 +49,42 @@ export function PasswordForm({ staff, saving, error, onSave, onCancel }: Passwor
           API)
         </p>
 
-        {displayedError && <p className="error-message">{displayedError}</p>}
+        {displayedError ? <p className="error-message">{displayedError}</p> : null}
 
         <form onSubmit={handleSubmit}>
-          <label>
-            New password
-            <div className="password-field">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                minLength={6}
-                maxLength={128}
-                autoComplete="new-password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-              />
-              <button
-                type="button"
-                className="btn btn-link"
-                onClick={() => setShowPassword((value) => !value)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
-            </div>
-          </label>
-
-          <label>
-            Confirm new password
+          <label htmlFor="password-new">New password</label>
+          <div className="password-field">
             <input
+              id="password-new"
               type={showPassword ? 'text' : 'password'}
               required
               minLength={6}
               maxLength={128}
               autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
             />
-          </label>
+            <button
+              type="button"
+              className="btn btn-link"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
+
+          <label htmlFor="password-confirm">Confirm new password</label>
+          <input
+            id="password-confirm"
+            type={showPassword ? 'text' : 'password'}
+            required
+            minLength={6}
+            maxLength={128}
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+          />
 
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>

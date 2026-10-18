@@ -38,6 +38,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return (await response.json()) as T
 }
 
+/**
+ * SWR fetcher: the cache key is the API path, so the same request is
+ * deduplicated across components (rule client-swr-dedup).
+ */
+export function fetcher<T>(url: string): Promise<T> {
+  return request<T>(url)
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body: unknown) =>

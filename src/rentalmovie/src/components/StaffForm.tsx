@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import type { AddressOption, Staff, StaffCreateInput, StaffUpdateInput, StoreOption } from '../types'
 
 interface StaffFormProps {
@@ -22,36 +22,38 @@ interface FormState {
   password: string
 }
 
-const emptyForm: FormState = {
-  firstName: '',
-  lastName: '',
-  email: '',
-  addressId: '',
-  storeId: '',
-  username: '',
-  password: '',
+// Initial state is derived from the staff prop during render (rule
+// rerender-derived-state-no-effect): the parent mounts this component with a
+// stable `key`, so switching between create/edit remounts and resets it
+// without an effect.
+function initialState(staff: Staff | null): FormState {
+  if (!staff) {
+    return {
+      firstName: '',
+      lastName: '',
+      email: '',
+      addressId: '',
+      storeId: '',
+      username: '',
+      password: '',
+    }
+  }
+
+  return {
+    firstName: staff.firstName,
+    lastName: staff.lastName,
+    email: staff.email ?? '',
+    addressId: String(staff.addressId),
+    storeId: String(staff.storeId),
+    username: staff.username,
+    password: '',
+  }
 }
 
 export function StaffForm({ staff, addresses, stores, saving, error, onSave, onCancel }: StaffFormProps) {
   const isEdit = staff !== null
-  const [form, setForm] = useState<FormState>(emptyForm)
+  const [form, setForm] = useState<FormState>(() => initialState(staff))
   const [showPassword, setShowPassword] = useState(false)
-
-  useEffect(() => {
-    if (staff) {
-      setForm({
-        firstName: staff.firstName,
-        lastName: staff.lastName,
-        email: staff.email ?? '',
-        addressId: String(staff.addressId),
-        storeId: String(staff.storeId),
-        username: staff.username,
-        password: '',
-      })
-    } else {
-      setForm(emptyForm)
-    }
-  }, [staff])
 
   function updateField(field: keyof FormState, value: string) {
     setForm((previous) => ({ ...previous, [field]: value }))
@@ -87,7 +89,7 @@ export function StaffForm({ staff, addresses, stores, saving, error, onSave, onC
       >
         <h2 id="staff-form-title">{isEdit ? `Edit staff #${staff.staffId}` : 'New staff member'}</h2>
 
-        {error && <p className="error-message">{error}</p>}
+        {error ? <p className="error-message">{error}</p> : null}
 
         <form onSubmit={handleSubmit}>
           <div className="form-row">
@@ -95,6 +97,7 @@ export function StaffForm({ staff, addresses, stores, saving, error, onSave, onC
               First name
               <input
                 type="text"
+                name="firstName"
                 required
                 maxLength={45}
                 value={form.firstName}
@@ -105,6 +108,7 @@ export function StaffForm({ staff, addresses, stores, saving, error, onSave, onC
               Last name
               <input
                 type="text"
+                name="lastName"
                 required
                 maxLength={45}
                 value={form.lastName}
@@ -118,8 +122,10 @@ export function StaffForm({ staff, addresses, stores, saving, error, onSave, onC
               Username
               <input
                 type="text"
+                name="username"
                 required
                 maxLength={16}
+                autoComplete="username"
                 value={form.username}
                 onChange={(event) => updateField('username', event.target.value)}
               />
@@ -128,7 +134,9 @@ export function StaffForm({ staff, addresses, stores, saving, error, onSave, onC
               Email
               <input
                 type="email"
+                name="email"
                 maxLength={50}
+                autoComplete="email"
                 value={form.email}
                 onChange={(event) => updateField('email', event.target.value)}
               />
@@ -139,6 +147,7 @@ export function StaffForm({ staff, addresses, stores, saving, error, onSave, onC
             <label>
               Address
               <select
+                name="addressId"
                 required
                 value={form.addressId}
                 onChange={(event) => updateField('addressId', event.target.value)}
@@ -154,6 +163,7 @@ export function StaffForm({ staff, addresses, stores, saving, error, onSave, onC
             <label>
               Store
               <select
+                name="storeId"
                 required
                 value={form.storeId}
                 onChange={(event) => updateField('storeId', event.target.value)}
@@ -168,11 +178,12 @@ export function StaffForm({ staff, addresses, stores, saving, error, onSave, onC
             </label>
           </div>
 
-          {!isEdit && (
-            <label>
-              Password
+          {!isEdit ? (
+            <>
+              <label htmlFor="staff-password">Password</label>
               <div className="password-field">
                 <input
+                  id="staff-password"
                   type={showPassword ? 'text' : 'password'}
                   required
                   minLength={6}
@@ -191,8 +202,8 @@ export function StaffForm({ staff, addresses, stores, saving, error, onSave, onC
                 </button>
               </div>
               <small className="muted">Stored hashed; it can never be read back.</small>
-            </label>
-          )}
+            </>
+          ) : null}
 
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>

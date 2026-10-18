@@ -1,11 +1,5 @@
 import { api } from './api'
-import type {
-  AddressOption,
-  Staff,
-  StaffCreateInput,
-  StaffUpdateInput,
-  StoreOption,
-} from './types'
+import type { Staff, StaffCreateInput, StaffUpdateInput } from './types'
 
 function buildQuery(params: { search?: string; active?: boolean | undefined }): string {
   const query = new URLSearchParams()
@@ -19,15 +13,17 @@ function buildQuery(params: { search?: string; active?: boolean | undefined }): 
   return qs ? `?${qs}` : ''
 }
 
+/**
+ * SWR cache keys. List keys embed the filters so each filter combination has
+ * its own cache entry (no stale responses can overwrite a newer query).
+ */
+export const staffKeys = {
+  list: (search?: string, active?: boolean) => `/api/staff${buildQuery({ search, active })}`,
+  addresses: '/api/lookups/addresses',
+  stores: '/api/lookups/stores',
+}
+
 export const staffApi = {
-  list(search?: string, active?: boolean) {
-    return api.get<Staff[]>(`/api/staff${buildQuery({ search, active })}`)
-  },
-
-  get(staffId: number) {
-    return api.get<Staff>(`/api/staff/${staffId}`)
-  },
-
   create(input: StaffCreateInput) {
     return api.post<Staff>('/api/staff', input)
   },
@@ -42,15 +38,5 @@ export const staffApi = {
 
   setActive(staffId: number, active: boolean) {
     return api.put<{ staffId: number; active: boolean }>(`/api/staff/${staffId}/active`, { active })
-  },
-}
-
-export const lookupApi = {
-  addresses() {
-    return api.get<AddressOption[]>('/api/lookups/addresses')
-  },
-
-  stores() {
-    return api.get<StoreOption[]>('/api/lookups/stores')
   },
 }

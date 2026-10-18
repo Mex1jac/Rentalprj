@@ -29,6 +29,7 @@ Desarrollar un sistema que permita la renta de peliculas
 - Gestor de paquetes: dotnet (backend), npm (frontend).
 - Solución: `Rentalwebapp.slnx` (formato nuevo de .NET 10).
 
+
 - Capas DDD (carpetas dentro de cada proyecto):
   - `Domain/` — entidades y puertos (interfaces).
   - `Application/` — casos de uso (services) y DTOs.
@@ -40,7 +41,7 @@ Desarrollar un sistema que permita la renta de peliculas
 
 - **Backend:** `dotnet run --project src\RentalApp.Api --launch-profile http` → `http://localhost:5174` (Swagger en `/swagger`).
 - **Frontend (dev):** `cd src/rentalmovie && npm run dev` → `http://localhost:5173`.
-- **Tests:** `dotnet test` (33 tests) · **Frontend build:** `npm run build` en `src/rentalmovie`.
+- **Tests:** `dotnet test` (33 tests) · **Frontend tests:** `npm test` en `src/rentalmovie` (26 tests con Vitest) · **Frontend build:** `npm run build`.
 - La cadena de conexión va en `src/RentalApp.Api/appsettings.Development.json` (sección `ConnectionStrings:Sakila`) o en la variable de entorno `ConnectionStrings__Sakila`.
 ## 6. Convenciones
 - Estilo: camelCase.
@@ -54,12 +55,14 @@ Desarrollar un sistema que permita la renta de peliculas
 - Verificación antes de terminar: corre `dotnet build` (y `dotnet test`) y muéstrame la salida.
 - Si algo es ambiguo: pregúntame antes de asumir.
 - cada vez que haya un cambio actualizar con la informacion mas reciente tanto el backlog como specs.md 
+- usar skill  vercel-react-best-practices para la parte web siempre
+- usar el mcp chrome-devtools para probar con almenos 3 resoluciones diferentes 
 
 ## 8. Tareas / backlog
 Lee el archivo spec.md para cada una de las funcionlidades que no esten completadas y actualiza spec.md y este archivo cuando se completen
 | # | Tarea | Prioridad | Estado | Notas |
 |---|-------|-----------|--------|-------|
-| 1 | crear una pagina de mantenimiento para la tabla staff dentro de la base sakila, debe permitir altas bajas y cambios en ecampo password se debe tener alguntipo de ocultamiento  | Alta | Completada | Ver spec.md: endpoints, SHA-1 en `Infrastructure/Security/Sha1PasswordHasher`, baja lógica por `active`, 33 tests. |
+| 1 | crear una pagina de mantenimiento para la tabla staff dentro de la base sakila, debe permitir altas bajas y cambios en ecampo password se debe tener alguntipo de ocultamiento  | Alta | Completada | Ver spec.md: endpoints, SHA-1 en `Infrastructure/Security/Sha1PasswordHasher`, baja lógica por `active`. Tests: 33 backend + 26 frontend (Vitest/SWR). Responsive verificado con chrome-devtools en 1920/768/375 px. |
 
 
 ## 9. Notas y decisiones

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useDeferredValue, useState } from 'react'
+import useSWR, { useSWRConfig } from 'swr'
 import './App.css'
-import { ApiError } from './api'
+import { ApiError, fetcher } from './api'
 import { PasswordForm } from './components/PasswordForm'
 import { StaffForm } from './components/StaffForm'
 import { StaffList } from './components/StaffList'
-import { lookupApi, staffApi } from './staffApi'
+import { staffApi, staffKeys } from './staffApi'
 import type { AddressOption, Staff, StaffCreateInput, StaffUpdateInput, StoreOption } from './types'
 
 type ModalState =
@@ -24,47 +25,37 @@ function errorMessage(error: unknown): string {
 }
 
 export default function App() {
-  const [staff, setStaff] = useState<Staff[]>([])
-  const [addresses, setAddresses] = useState<AddressOption[]>([])
-  const [stores, setStores] = useState<StoreOption[]>([])
-  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [activeFilter, setActiveFilter] = useState<'' | 'true' | 'false'>('')
   const [saving, setSaving] = useState(false)
   const [modal, setModal] = useState<ModalState>({ kind: 'none' })
   const [modalError, setModalError] = useState<string | null>(null)
-  const [pageError, setPageError] = useState<string | null>(null)
+  const [pageActionError, setPageActionError] = useState<string | null>(null)
 
-  const [search, setSearch] = useState('')
-  const [activeFilter, setActiveFilter] = useState<'' | 'true' | 'false'>('')
+  // Scoped mutate (from useSWRConfig) respects the active cache provider, so
+  // revalidation always targets the cache this tree is reading from.
+  const { mutate } = useSWRConfig()
 
-  const loadStaff = useCallback(async () => {
-    setLoading(true)
-    try {
-      const active = activeFilter === '' ? undefined : activeFilter === 'true'
-      setStaff(await staffApi.list(search || undefined, active))
-      setPageError(null)
-    } catch (error) {
-      setPageError(errorMessage(error))
-    } finally {
-      setLoading(false)
-    }
-  }, [search, activeFilter])
+  // Defer the search term so typing stays responsive while the network
+  // request for the new key runs (rule rerender-use-deferred-value).
+  const deferredSearch = useDeferredValue(search)
+  const isStale = search !== deferredSearch
+  const active = activeFilter === '' ? undefined : activeFilter === 'true'
 
-  useEffect(() => {
-    void loadStaff()
-  }, [loadStaff])
+  // One cache entry per filter combination: a slow response for an older
+  // query can never overwrite results of a newer one (rule client-swr-dedup).
+  const {
+    data: staff = [],
+    error: listError,
+    isLoading,
+  } = useSWR(staffKeys.list(deferredSearch || undefined, active), fetcher<Staff[]>)
+  const { data: addresses = [] } = useSWR(staffKeys.addresses, fetcher<AddressOption[]>)
+  const { data: stores = [] } = useSWR(staffKeys.stores, fetcher<StoreOption[]>)
 
-  // Lookups are loaded once: they feed the form selects.
-  useEffect(() => {
-    void (async () => {
-      try {
-        const [addressList, storeList] = await Promise.all([lookupApi.addresses(), lookupApi.stores()])
-        setAddresses(addressList)
-        setStores(storeList)
-      } catch (error) {
-        setPageError(errorMessage(error))
-      }
-    })()
-  }, [])
+  const pageError = listError ? errorMessage(listError) : null
+
+  // Avoid re-rendering the modal content while its staff reference changes.
+  const modalStaff = modal.kind === 'edit' || modal.kind === 'password' ? modal.staff : null
 
   function openCreate() {
     setModalError(null)
@@ -74,6 +65,11 @@ export default function App() {
   function closeModal() {
     setModal({ kind: 'none' })
     setModalError(null)
+  }
+
+  async function revalidateStaffLists() {
+    // Revalidate every cached staff list (any search/status combination).
+    await mutate((key) => typeof key === 'string' && key.startsWith('/api/staff'))
   }
 
   async function handleSave(input: StaffCreateInput | StaffUpdateInput) {
@@ -86,7 +82,7 @@ export default function App() {
         await staffApi.create(input as StaffCreateInput)
       }
       closeModal()
-      await loadStaff()
+      await revalidateStaffLists()
     } catch (error) {
       setModalError(errorMessage(error))
     } finally {
@@ -111,17 +107,15 @@ export default function App() {
   }
 
   async function handleToggleActive(member: Staff) {
+    setPageActionError(null)
     try {
       await staffApi.setActive(member.staffId, !member.active)
-      await loadStaff()
+      await revalidateStaffLists()
     } catch (error) {
-      setPageError(errorMessage(error))
+      // Shown at page level: this action runs without a modal.
+      setPageActionError(errorMessage(error))
     }
   }
-
-  // Avoid re-rendering the modal content while its staff reference changes.
-  const modalStaff =
-    modal.kind === 'edit' || modal.kind === 'password' ? modal.staff : null
 
   return (
     <div className="app">
@@ -137,6 +131,8 @@ export default function App() {
           Search
           <input
             type="search"
+            name="search"
+            autoComplete="off"
             placeholder="Name, username or email..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -144,35 +140,40 @@ export default function App() {
         </label>
         <label>
           Status
-          <select value={activeFilter} onChange={(event) => setActiveFilter(event.target.value as typeof activeFilter)}>
+          <select
+            name="statusFilter"
+            value={activeFilter}
+            onChange={(event) => setActiveFilter(event.target.value as typeof activeFilter)}
+          >
             <option value="">All</option>
             <option value="true">Active</option>
             <option value="false">Inactive</option>
           </select>
         </label>
-        <button type="button" className="btn btn-secondary" onClick={() => void loadStaff()}>
-          Refresh
-        </button>
       </section>
 
-      {pageError && <p className="error-message">{pageError}</p>}
+      {pageError ? <p className="error-message">{pageError}</p> : null}
+      {pageActionError ? <p className="error-message">{pageActionError}</p> : null}
 
-      <StaffList
-        staff={staff}
-        loading={loading}
-        onEdit={(member) => {
-          setModalError(null)
-          setModal({ kind: 'edit', staff: member })
-        }}
-        onChangePassword={(member) => {
-          setModalError(null)
-          setModal({ kind: 'password', staff: member })
-        }}
-        onToggleActive={(member) => void handleToggleActive(member)}
-      />
+      <div className={isStale ? 'results-stale' : undefined} aria-busy={isStale}>
+        <StaffList
+          staff={staff}
+          loading={isLoading}
+          onEdit={(member) => {
+            setModalError(null)
+            setModal({ kind: 'edit', staff: member })
+          }}
+          onChangePassword={(member) => {
+            setModalError(null)
+            setModal({ kind: 'password', staff: member })
+          }}
+          onToggleActive={(member) => void handleToggleActive(member)}
+        />
+      </div>
 
-      {modal.kind === 'create' && (
+      {modal.kind === 'create' ? (
         <StaffForm
+          key="create"
           staff={null}
           addresses={addresses}
           stores={stores}
@@ -181,10 +182,11 @@ export default function App() {
           onSave={(input) => void handleSave(input)}
           onCancel={closeModal}
         />
-      )}
+      ) : null}
 
-      {modal.kind === 'edit' && modalStaff && (
+      {modal.kind === 'edit' && modalStaff ? (
         <StaffForm
+          key={`edit-${modalStaff.staffId}`}
           staff={modalStaff}
           addresses={addresses}
           stores={stores}
@@ -193,17 +195,18 @@ export default function App() {
           onSave={(input) => void handleSave(input)}
           onCancel={closeModal}
         />
-      )}
+      ) : null}
 
-      {modal.kind === 'password' && modalStaff && (
+      {modal.kind === 'password' && modalStaff ? (
         <PasswordForm
+          key={`password-${modalStaff.staffId}`}
           staff={modalStaff}
           saving={saving}
           error={modalError}
           onSave={(password) => void handleChangePassword(password)}
           onCancel={closeModal}
         />
-      )}
+      ) : null}
     </div>
   )
 }

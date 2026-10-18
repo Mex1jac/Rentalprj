@@ -10,7 +10,19 @@
 
 | # | Tarea | Prioridad | Estado | Notas |
 |---|-------|-----------|--------|-------|
-| Task-01 | Página de mantenimiento de la tabla `staff` (altas, bajas y cambios, con ocultamiento de password) | Alta | Completada | Backend DDD + Dapper (`RentalApp.Api`) y frontend React (`src/rentalmovie`). Baja lógica vía campo `active`. 33 tests unitarios. |
+| Task-01 | Página de mantenimiento de la tabla `staff` (altas, bajas y cambios, con ocultamiento de password) | Alta | Completada | Backend DDD + Dapper (`RentalApp.Api`) y frontend React (`src/rentalmovie`). Baja lógica vía campo `active`. Tests: **33 backend (xUnit) + 26 frontend (Vitest)**. |
+
+### Frontend (`src/rentalmovie`) — cumplimiento vercel-react-best-practices
+
+| Regla skill | Implementación |
+|---|---|
+| `client-swr-dedup` | Lecturas con **SWR** (`useSWR`): clave por combinación de filtros (`/api/staff?search=&active=`), dedup de peticiones y sin condiciones de carrera; lookups (addresses/stores) cacheados. Revalidación pos-mutación con `mutate` **con scope** (`useSWRConfig`) filtrando claves `startsWith('/api/staff')`. |
+| `rerender-derived-state-no-effect` | `StaffForm` ya no resetea estado en `useEffect`: el estado se deriva de la prop en el inicializador y el padre monta con `key={`edit-${staffId}`}` / `key="create"`. |
+| `rerender-use-deferred-value` | La búsqueda usa `useDeferredValue(search)`; mientras se resuelve la clave nueva, la tabla se atenúa (`.results-stale`, `aria-busy`). |
+| Accesibilidad | Labels asociados con `htmlFor`/`id`, `name`/`autoComplete` en todos los campos, `role=dialog`+`aria-modal`, `aria-label` en mostrar/ocultar password. Consola Chrome sin errores ni issues. |
+
+- **Tests frontend:** Vitest 5 + React Testing Library + jsdom → `npm test` en `src/rentalmovie` (26 tests: `api` 4, `StaffForm` 9, `PasswordForm` 5, `App` 8 con fetch mockeado y caché SWR aislada por test).
+- **Responsive (verificado con MCP chrome-devtools en 3 resoluciones):** Desktop 1920×1080 ✅, Tablet 768×1024 ✅, Móvil 375×667 ✅. Sin scroll horizontal en la página: la tabla vive en `.table-scroll` con `overflow-x:auto` y `min-width:720px`; los `<select>` del modal se limitan con `width:100%` (603 direcciones no desbordan el modal en móvil).
 
 ### API endpoints
 
