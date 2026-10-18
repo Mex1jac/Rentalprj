@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, fetcher } from '../api'
+import { ApiError, api } from '../../infrastructure/http/httpClient'
 
 function jsonResponse(body: unknown, status = 200): Response {
   return {
@@ -13,17 +13,19 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('fetcher', () => {
-  it('returns parsed JSON on success', async () => {
+describe('httpClient', () => {
+  it('get returns parsed JSON with JSON headers', async () => {
     const payload = [{ staffId: 1 }]
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(payload)))
 
-    const result = await fetcher<typeof payload>('/api/staff')
+    const result = await api.get<typeof payload>('/api/staff')
 
     expect(result).toEqual(payload)
     expect(fetch).toHaveBeenCalledWith(
       'http://localhost:5174/api/staff',
-      expect.objectContaining({ headers: expect.objectContaining({ 'Content-Type': 'application/json' }) }),
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
     )
   })
 
@@ -33,7 +35,7 @@ describe('fetcher', () => {
       vi.fn().mockResolvedValue(jsonResponse({ error: 'Username is already in use.' }, 409)),
     )
 
-    const error = await fetcher('/api/staff').catch((e: unknown) => e)
+    const error = await api.get('/api/staff').catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(ApiError)
     expect(error).toMatchObject({ status: 409, message: 'Username is already in use.' })
@@ -51,15 +53,20 @@ describe('fetcher', () => {
       } as unknown as Response),
     )
 
-    const error = await fetcher('/api/staff').catch((e: unknown) => e)
+    const error = await api.get('/api/staff').catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).message).toBe('Request failed with status 500')
   })
 
-  it('resolves undefined on 204 No Content', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(null, 204)))
+  it('put resolves undefined on 204 No Content', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(null, 204))
+    vi.stubGlobal('fetch', fetchMock)
 
-    await expect(fetcher('/api/staff/1/password')).resolves.toBeUndefined()
+    await expect(api.put('/api/staff/1/password', { newPassword: 'secret123' })).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:5174/api/staff/1/password',
+      expect.objectContaining({ method: 'PUT' }),
+    )
   })
 })

@@ -1,16 +1,16 @@
-import type { Staff } from '../types'
+import { displayName, type Staff } from '../../domain/entities/staff'
 
 interface StaffListProps {
   staff: Staff[]
   loading: boolean
-  onEdit: (staff: Staff) => void
-  onChangePassword: (staff: Staff) => void
-  onToggleActive: (staff: Staff) => void
+  onEdit: (member: Staff) => void
+  onChangePassword: (member: Staff) => void
+  onToggleActive: (member: Staff) => void
 }
 
 export function StaffList({ staff, loading, onEdit, onChangePassword, onToggleActive }: StaffListProps) {
   if (loading) {
-    return <p className="muted">Loading staff...</p>
+    return <p className="muted">Loading staff members...</p>
   }
 
   if (staff.length === 0) {
@@ -37,9 +37,7 @@ export function StaffList({ staff, loading, onEdit, onChangePassword, onToggleAc
           {staff.map((member) => (
             <tr key={member.staffId} className={member.active ? '' : 'row-inactive'}>
               <td>{member.staffId}</td>
-              <td>
-                {member.firstName} {member.lastName}
-              </td>
+              <td>{displayName(member)}</td>
               <td>{member.username}</td>
               <td>{member.email ?? '—'}</td>
               <td>{member.store}</td>

@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import type { AddressOption, Staff, StaffCreateInput, StaffUpdateInput, StoreOption } from '../types'
+import type { StaffFormValues } from '../../application/dtos/staffDtos'
+import type { AddressOption, StoreOption } from '../../domain/entities/lookup'
+import type { Staff } from '../../domain/entities/staff'
 
 interface StaffFormProps {
   // null means "create mode"; an existing staff means "edit mode".
@@ -8,7 +10,9 @@ interface StaffFormProps {
   stores: StoreOption[]
   saving: boolean
   error: string | null
-  onSave: (input: StaffCreateInput | StaffUpdateInput) => void
+  // Raw values are forwarded as typed: normalization and validation belong to
+  // the staff service (application layer), not to the UI.
+  onSave: (values: StaffFormValues) => void
   onCancel: () => void
 }
 
@@ -61,21 +65,7 @@ export function StaffForm({ staff, addresses, stores, saving, error, onSave, onC
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
-
-    const base = {
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      email: form.email.trim() === '' ? null : form.email.trim(),
-      addressId: Number(form.addressId),
-      storeId: Number(form.storeId),
-      username: form.username.trim(),
-    }
-
-    if (isEdit) {
-      onSave(base as StaffUpdateInput)
-    } else {
-      onSave({ ...base, password: form.password } as StaffCreateInput)
-    }
+    onSave({ ...form })
   }
 
   return (

@@ -41,7 +41,7 @@ Desarrollar un sistema que permita la renta de peliculas
 
 - **Backend:** `dotnet run --project src\RentalApp.Api --launch-profile http` → `http://localhost:5174` (Swagger en `/swagger`).
 - **Frontend (dev):** `cd src/rentalmovie && npm run dev` → `http://localhost:5173`.
-- **Tests:** `dotnet test` (33 tests) · **Frontend tests:** `npm test` en `src/rentalmovie` (26 tests con Vitest) · **Frontend build:** `npm run build`.
+- **Tests:** `dotnet test` (33 tests) · **Frontend tests:** `npm test` en `src/rentalmovie` (61 tests con Vitest) · **Frontend build:** `npm run build`.
 - La cadena de conexión va en `src/RentalApp.Api/appsettings.Development.json` (sección `ConnectionStrings:Sakila`) o en la variable de entorno `ConnectionStrings__Sakila`.
 ## 6. Convenciones
 - Estilo: camelCase.
@@ -63,6 +63,7 @@ Lee el archivo spec.md para cada una de las funcionlidades que no esten completa
 | # | Tarea | Prioridad | Estado | Notas |
 |---|-------|-----------|--------|-------|
 | 1 | crear una pagina de mantenimiento para la tabla staff dentro de la base sakila, debe permitir altas bajas y cambios en ecampo password se debe tener alguntipo de ocultamiento  | Alta | Completada | Ver spec.md: endpoints, SHA-1 en `Infrastructure/Security/Sha1PasswordHasher`, baja lógica por `active`. Tests: 33 backend + 26 frontend (Vitest/SWR). Responsive verificado con chrome-devtools en 1920/768/375 px. |
+| 2 | agregar mismo patron de diseño ddd al front end  | Alta | Completada | Ver spec.md sección "DDD en el frontend": capas `domain/application/infrastructure/presentation` en espejo de `RentalApp.Api`, puertos inyectados en `presentation/App.tsx` (composition root), validaciones espejo del backend en `staffService`, 61 tests frontend. |
 
 
 ## 9. Notas y decisiones

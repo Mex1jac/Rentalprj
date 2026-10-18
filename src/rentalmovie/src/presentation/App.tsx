@@ -1,12 +1,19 @@
-import { useDeferredValue, useState } from 'react'
-import useSWR, { useSWRConfig } from 'swr'
+import { useDeferredValue, useMemo, useState } from 'react'
 import './App.css'
-import { ApiError, fetcher } from './api'
+import type { StaffFormValues } from '../application/dtos/staffDtos'
+import { useStaffMutations } from '../application/mutations/staffMutations'
+import { useAddresses, useStores } from '../application/queries/lookupQueries'
+import { useStaffList } from '../application/queries/staffQueries'
+import { createStaffService } from '../application/services/staffService'
+import type { Staff } from '../domain/entities/staff'
+import type { LookupRepository } from '../domain/ports/lookupRepository'
+import type { StaffListQuery, StaffRepository } from '../domain/ports/staffRepository'
+import { lookupApiRepository } from '../infrastructure/persistence/lookupApiRepository'
+import { staffApiRepository } from '../infrastructure/persistence/staffApiRepository'
 import { PasswordForm } from './components/PasswordForm'
 import { StaffForm } from './components/StaffForm'
 import { StaffList } from './components/StaffList'
-import { staffApi, staffKeys } from './staffApi'
-import type { AddressOption, Staff, StaffCreateInput, StaffUpdateInput, StoreOption } from './types'
+import { errorMessage } from './errorMessage'
 
 type ModalState =
   | { kind: 'none' }
@@ -14,17 +21,20 @@ type ModalState =
   | { kind: 'edit'; staff: Staff }
   | { kind: 'password'; staff: Staff }
 
-function errorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    return error.message
-  }
-  if (error instanceof Error) {
-    return error.message
-  }
-  return 'Unexpected error.'
+export interface AppProps {
+  /**
+   * Persistence ports. The defaults are the production wiring: this
+   * component is the composition root (the frontend counterpart of
+   * Program.cs), so tests can inject fake ports instead of mocking fetch.
+   */
+  repository?: StaffRepository
+  lookupRepository?: LookupRepository
 }
 
-export default function App() {
+export default function App({
+  repository = staffApiRepository,
+  lookupRepository = lookupApiRepository,
+}: AppProps) {
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<'' | 'true' | 'false'>('')
   const [saving, setSaving] = useState(false)
@@ -32,9 +42,9 @@ export default function App() {
   const [modalError, setModalError] = useState<string | null>(null)
   const [pageActionError, setPageActionError] = useState<string | null>(null)
 
-  // Scoped mutate (from useSWRConfig) respects the active cache provider, so
-  // revalidation always targets the cache this tree is reading from.
-  const { mutate } = useSWRConfig()
+  // Use cases are plain factories over the injected port (composition root).
+  const service = useMemo(() => createStaffService(repository), [repository])
+  const mutations = useStaffMutations(service)
 
   // Defer the search term so typing stays responsive while the network
   // request for the new key runs (rule rerender-use-deferred-value).
@@ -42,15 +52,11 @@ export default function App() {
   const isStale = search !== deferredSearch
   const active = activeFilter === '' ? undefined : activeFilter === 'true'
 
-  // One cache entry per filter combination: a slow response for an older
-  // query can never overwrite results of a newer one (rule client-swr-dedup).
-  const {
-    data: staff = [],
-    error: listError,
-    isLoading,
-  } = useSWR(staffKeys.list(deferredSearch || undefined, active), fetcher<Staff[]>)
-  const { data: addresses = [] } = useSWR(staffKeys.addresses, fetcher<AddressOption[]>)
-  const { data: stores = [] } = useSWR(staffKeys.stores, fetcher<StoreOption[]>)
+  // One cache entry per filter combination (rule client-swr-dedup).
+  const listQuery: StaffListQuery = { search: deferredSearch || undefined, active }
+  const { staff, error: listError, isLoading } = useStaffList(repository, listQuery)
+  const addresses = useAddresses(lookupRepository)
+  const stores = useStores(lookupRepository)
 
   const pageError = listError ? errorMessage(listError) : null
 
@@ -67,22 +73,16 @@ export default function App() {
     setModalError(null)
   }
 
-  async function revalidateStaffLists() {
-    // Revalidate every cached staff list (any search/status combination).
-    await mutate((key) => typeof key === 'string' && key.startsWith('/api/staff'))
-  }
-
-  async function handleSave(input: StaffCreateInput | StaffUpdateInput) {
+  async function handleSave(values: StaffFormValues) {
     setSaving(true)
     setModalError(null)
     try {
       if (modal.kind === 'edit') {
-        await staffApi.update(modal.staff.staffId, input as StaffUpdateInput)
+        await mutations.update(modal.staff.staffId, values)
       } else {
-        await staffApi.create(input as StaffCreateInput)
+        await mutations.create(values)
       }
       closeModal()
-      await revalidateStaffLists()
     } catch (error) {
       setModalError(errorMessage(error))
     } finally {
@@ -97,7 +97,7 @@ export default function App() {
     setSaving(true)
     setModalError(null)
     try {
-      await staffApi.changePassword(modal.staff.staffId, newPassword)
+      await mutations.changePassword(modal.staff.staffId, newPassword)
       closeModal()
     } catch (error) {
       setModalError(errorMessage(error))
@@ -109,8 +109,7 @@ export default function App() {
   async function handleToggleActive(member: Staff) {
     setPageActionError(null)
     try {
-      await staffApi.setActive(member.staffId, !member.active)
-      await revalidateStaffLists()
+      await mutations.setActive(member)
     } catch (error) {
       // Shown at page level: this action runs without a modal.
       setPageActionError(errorMessage(error))
@@ -179,7 +178,7 @@ export default function App() {
           stores={stores}
           saving={saving}
           error={modalError}
-          onSave={(input) => void handleSave(input)}
+          onSave={(values) => void handleSave(values)}
           onCancel={closeModal}
         />
       ) : null}
@@ -192,7 +191,7 @@ export default function App() {
           stores={stores}
           saving={saving}
           error={modalError}
-          onSave={(input) => void handleSave(input)}
+          onSave={(values) => void handleSave(values)}
           onCancel={closeModal}
         />
       ) : null}

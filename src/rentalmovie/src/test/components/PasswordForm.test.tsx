@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { PasswordForm } from '../components/PasswordForm'
-import type { Staff } from '../types'
+import type { Staff } from '../../domain/entities/staff'
+import { PasswordForm } from '../../presentation/components/PasswordForm'
 
 const staff: Staff = {
   staffId: 7,

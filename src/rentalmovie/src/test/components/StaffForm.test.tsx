@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { StaffForm } from '../components/StaffForm'
-import type { Staff } from '../types'
+import type { Staff } from '../../domain/entities/staff'
+import { StaffForm } from '../../presentation/components/StaffForm'
 
 const addresses = [{ addressId: 3, display: '23 Workhaven Lane, Lethbridge' }]
 const stores = [{ storeId: 1, display: 'Store 1 - 47 MySakila Drive' }]
@@ -61,7 +61,7 @@ describe('StaffForm (create mode)', () => {
     expect(screen.getByLabelText('Password')).toHaveAttribute('type', 'password')
   })
 
-  it('submits a trimmed payload and sends the clear password once', async () => {
+  it('submits the raw values exactly as typed (normalization happens in the service)', async () => {
     const user = userEvent.setup()
     const { onSave } = renderForm()
 
@@ -74,18 +74,21 @@ describe('StaffForm (create mode)', () => {
     await user.type(screen.getByLabelText('Password'), 'secret123')
     await user.click(screen.getByRole('button', { name: 'Create' }))
 
+    expect(onSave).toHaveBeenCalledTimes(1)
     expect(onSave).toHaveBeenCalledWith({
-      firstName: 'Jane',
-      lastName: 'Smith',
+      firstName: '  Jane  ',
+      lastName: ' Smith ',
+      // type="email" is sanitized by the HTML spec itself (whitespace
+      // stripped); every other field reaches the service untouched.
       email: 'jane@example.com',
-      addressId: 3,
-      storeId: 1,
-      username: 'jsmith',
+      addressId: '3',
+      storeId: '1',
+      username: ' jsmith ',
       password: 'secret123',
     })
   })
 
-  it('treats an empty email as null', async () => {
+  it('keeps an empty email as a raw string (the service converts it to null)', async () => {
     const user = userEvent.setup()
     const { onSave } = renderForm()
 
@@ -97,10 +100,10 @@ describe('StaffForm (create mode)', () => {
     await user.type(screen.getByLabelText('Password'), 'secret123')
     await user.click(screen.getByRole('button', { name: 'Create' }))
 
-    expect(onSave.mock.calls[0][0].email).toBeNull()
+    expect(onSave.mock.calls[0][0].email).toBe('')
   })
 
-  it('shows the server error and does not close on failure', () => {
+  it('shows the server error when provided', () => {
     renderForm({ error: 'Username already in use.' })
 
     expect(screen.getByText('Username already in use.')).toBeInTheDocument()
@@ -117,7 +120,7 @@ describe('StaffForm (edit mode)', () => {
     expect(screen.queryByLabelText('Password')).not.toBeInTheDocument()
   })
 
-  it('submits an update payload without a password field', async () => {
+  it('submits raw values with an empty password (the service ignores it)', async () => {
     const user = userEvent.setup()
     const { onSave } = renderForm({ staff: sampleStaff })
 
@@ -126,11 +129,11 @@ describe('StaffForm (edit mode)', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
     const payload = onSave.mock.calls[0][0]
-    expect(payload).toMatchObject({ firstName: 'Jon', username: 'jdoe', addressId: 3 })
-    expect(payload).not.toHaveProperty('password')
+    expect(payload).toMatchObject({ firstName: 'Jon', username: 'jdoe', addressId: '3' })
+    expect(payload.password).toBe('')
   })
 
-  it('resets state when remounted with another staff (key-based reset)', async () => {
+  it('resets state when remounted with another staff (key-based reset)', () => {
     const { rerender } = render(
       <StaffForm
         key="edit-7"

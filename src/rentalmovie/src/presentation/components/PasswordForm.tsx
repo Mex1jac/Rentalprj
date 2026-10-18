@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import type { Staff } from '../types'
+import type { Staff } from '../../domain/entities/staff'
 
 interface PasswordFormProps {
   staff: Staff
@@ -22,6 +22,7 @@ export function PasswordForm({ staff, saving, error, onSave, onCancel }: Passwor
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
 
+    // UX guard only: the service validates length again before sending.
     if (newPassword !== confirmPassword) {
       setLocalError('Passwords do not match.')
       return

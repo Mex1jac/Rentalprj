@@ -1,7 +1,11 @@
-// Small typed fetch wrapper for the RentalApp.Api backend.
+// Small typed fetch wrapper for the RentalApp.Api backend (Infrastructure).
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5174'
 
+/**
+ * Raw transport error. It keeps the HTTP status so errorMapper can translate
+ * it into a domain error; upper layers should not depend on this class.
+ */
 export class ApiError extends Error {
   readonly status: number
 
@@ -36,14 +40,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   return (await response.json()) as T
-}
-
-/**
- * SWR fetcher: the cache key is the API path, so the same request is
- * deduplicated across components (rule client-swr-dedup).
- */
-export function fetcher<T>(url: string): Promise<T> {
-  return request<T>(url)
 }
 
 export const api = {
