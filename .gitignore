@@ -1,0 +1,19 @@
+# .NET
+bin/
+obj/
+*.user
+
+# Node / Vite
+node_modules/
+dist/
+
+# Local environment settings (contain credentials/connection strings)
+src/RentalApp.Api/appsettings.Development.json
+
+# IDE / OS
+.vs/
+.vscode/
+.idea/
+*.suo
+Thumbs.db
+.DS_Store
