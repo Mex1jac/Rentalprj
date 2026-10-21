@@ -66,4 +66,28 @@ public class LookupRepository : ILookupRepository
             new CommandDefinition(sql, new { StoreId = storeId }, cancellationToken: cancellationToken));
         return count > 0;
     }
+
+    public async Task<IReadOnlyList<FilmOption>> GetFilmsAsync(byte storeId, CancellationToken cancellationToken = default)
+    {
+        // Films stocked at the store with their copies currently on rental.
+        // Films with zero available copies are included on purpose: the rental
+        // form hides them, but the use case needs their title for error messages.
+        var sql = """
+            SELECT f.film_id AS FilmId,
+                   f.title AS Title,
+                   f.rental_duration AS RentalDurationDays,
+                   f.rental_rate AS RentalRate,
+                   SUM(CASE WHEN r.rental_id IS NULL THEN 1 ELSE 0 END) AS AvailableCopies
+            FROM film f
+            JOIN inventory i ON i.film_id = f.film_id AND i.store_id = @StoreId
+            LEFT JOIN rental r ON r.inventory_id = i.inventory_id AND r.return_date IS NULL
+            GROUP BY f.film_id, f.title, f.rental_duration, f.rental_rate
+            ORDER BY f.title
+            """;
+
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        var films = await connection.QueryAsync<FilmOption>(
+            new CommandDefinition(sql, new { StoreId = storeId }, cancellationToken: cancellationToken));
+        return films.ToList();
+    }
 }

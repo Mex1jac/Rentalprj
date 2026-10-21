@@ -4,11 +4,61 @@
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .app-header h1 {
   margin: 0;
   font-size: 1.5rem;
+}
+
+/* --- Tabs ------------------------------------------------------------------ */
+
+.app-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tab {
+  padding: 0.5rem 1rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.tab:hover {
+  background: var(--color-background);
+}
+
+.tab-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.tab-active:hover {
+  background: var(--color-primary-dark);
+}
+
+/* --- View toolbar ---------------------------------------------------------- */
+
+.view-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.view-toolbar h2 {
+  margin: 0;
+  font-size: 1.15rem;
 }
 
 /* --- Filters ------------------------------------------------------------- */
@@ -106,6 +156,21 @@ th.actions-col {
 .badge-inactive {
   background: #fee2e2;
   color: var(--color-danger);
+}
+
+.badge-overdue {
+  background: #fee2e2;
+  color: var(--color-danger);
+}
+
+.badge-returned {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.cell-overdue {
+  color: var(--color-danger);
+  font-weight: 700;
 }
 
 /* --- Buttons -------------------------------------------------------------- */
@@ -232,6 +297,51 @@ th.actions-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+
+/* --- Film picker (rental modal) -------------------------------------------- */
+
+.film-picker {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.film-option {
+  /* Overrides the generic vertical .modal label layout. */
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.5rem !important;
+  font-weight: 400 !important;
+  font-size: 0.9rem !important;
+  padding: 0.25rem 0.35rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.film-option:hover {
+  background: var(--color-background);
+}
+
+.film-option input {
+  /* Overrides the width:100% rule for .modal input. */
+  width: auto !important;
+  min-width: 0 !important;
+  padding: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.film-meta {
+  margin-left: auto;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .modal-actions {

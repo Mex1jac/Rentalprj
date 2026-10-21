@@ -1,4 +1,4 @@
-import type { AddressOption, StoreOption } from '../../domain/entities/lookup'
+import type { AddressOption, FilmOption, StoreOption } from '../../domain/entities/lookup'
 import type { LookupRepository } from '../../domain/ports/lookupRepository'
 import { mapApiError } from '../http/errorMapper'
 import { api } from '../http/httpClient'
@@ -16,6 +16,14 @@ export const lookupApiRepository: LookupRepository = {
   async getStores() {
     try {
       return await api.get<StoreOption[]>('/api/lookups/stores')
+    } catch (error) {
+      throw mapApiError(error)
+    }
+  },
+
+  async getFilms(storeId) {
+    try {
+      return await api.get<FilmOption[]>(`/api/lookups/films?storeId=${storeId}`)
     } catch (error) {
       throw mapApiError(error)
     }

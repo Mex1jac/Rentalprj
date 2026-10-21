@@ -10,3 +10,12 @@ export interface StoreOption {
   storeId: number
   display: string
 }
+
+/** Film stocked at a store with its currently available copies. */
+export interface FilmOption {
+  filmId: number
+  title: string
+  rentalDurationDays: number
+  rentalRate: number
+  availableCopies: number
+}

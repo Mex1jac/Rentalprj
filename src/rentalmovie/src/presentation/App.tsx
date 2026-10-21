@@ -1,25 +1,18 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useState } from 'react'
 import './App.css'
-import type { StaffFormValues } from '../application/dtos/staffDtos'
-import { useStaffMutations } from '../application/mutations/staffMutations'
-import { useAddresses, useStores } from '../application/queries/lookupQueries'
-import { useStaffList } from '../application/queries/staffQueries'
-import { createStaffService } from '../application/services/staffService'
-import type { Staff } from '../domain/entities/staff'
+import type { CustomerRepository } from '../domain/ports/customerRepository'
 import type { LookupRepository } from '../domain/ports/lookupRepository'
-import type { StaffListQuery, StaffRepository } from '../domain/ports/staffRepository'
+import type { RentalRepository } from '../domain/ports/rentalRepository'
+import type { StaffRepository } from '../domain/ports/staffRepository'
+import { customerApiRepository } from '../infrastructure/persistence/customerApiRepository'
 import { lookupApiRepository } from '../infrastructure/persistence/lookupApiRepository'
+import { rentalApiRepository } from '../infrastructure/persistence/rentalApiRepository'
 import { staffApiRepository } from '../infrastructure/persistence/staffApiRepository'
-import { PasswordForm } from './components/PasswordForm'
-import { StaffForm } from './components/StaffForm'
-import { StaffList } from './components/StaffList'
-import { errorMessage } from './errorMessage'
+import { CustomersView } from './views/CustomersView'
+import { RentalsView } from './views/RentalsView'
+import { StaffView } from './views/StaffView'
 
-type ModalState =
-  | { kind: 'none' }
-  | { kind: 'create' }
-  | { kind: 'edit'; staff: Staff }
-  | { kind: 'password'; staff: Staff }
+type View = 'staff' | 'customers' | 'rentals'
 
 export interface AppProps {
   /**
@@ -29,182 +22,69 @@ export interface AppProps {
    */
   repository?: StaffRepository
   lookupRepository?: LookupRepository
+  customerRepository?: CustomerRepository
+  rentalRepository?: RentalRepository
 }
+
+const TABS: ReadonlyArray<{ id: View; label: string }> = [
+  { id: 'staff', label: 'Staff' },
+  { id: 'customers', label: 'Customers' },
+  { id: 'rentals', label: 'Rentals' },
+]
 
 export default function App({
   repository = staffApiRepository,
   lookupRepository = lookupApiRepository,
+  customerRepository = customerApiRepository,
+  rentalRepository = rentalApiRepository,
 }: AppProps) {
-  const [search, setSearch] = useState('')
-  const [activeFilter, setActiveFilter] = useState<'' | 'true' | 'false'>('')
-  const [saving, setSaving] = useState(false)
-  const [modal, setModal] = useState<ModalState>({ kind: 'none' })
-  const [modalError, setModalError] = useState<string | null>(null)
-  const [pageActionError, setPageActionError] = useState<string | null>(null)
+  const [view, setView] = useState<View>('staff')
 
-  // Use cases are plain factories over the injected port (composition root).
-  const service = useMemo(() => createStaffService(repository), [repository])
-  const mutations = useStaffMutations(service)
-
-  // Defer the search term so typing stays responsive while the network
-  // request for the new key runs (rule rerender-use-deferred-value).
-  const deferredSearch = useDeferredValue(search)
-  const isStale = search !== deferredSearch
-  const active = activeFilter === '' ? undefined : activeFilter === 'true'
-
-  // One cache entry per filter combination (rule client-swr-dedup).
-  const listQuery: StaffListQuery = { search: deferredSearch || undefined, active }
-  const { staff, error: listError, isLoading } = useStaffList(repository, listQuery)
-  const addresses = useAddresses(lookupRepository)
-  const stores = useStores(lookupRepository)
-
-  const pageError = listError ? errorMessage(listError) : null
-
-  // Avoid re-rendering the modal content while its staff reference changes.
-  const modalStaff = modal.kind === 'edit' || modal.kind === 'password' ? modal.staff : null
-
-  function openCreate() {
-    setModalError(null)
-    setModal({ kind: 'create' })
-  }
-
-  function closeModal() {
-    setModal({ kind: 'none' })
-    setModalError(null)
-  }
-
-  async function handleSave(values: StaffFormValues) {
-    setSaving(true)
-    setModalError(null)
-    try {
-      if (modal.kind === 'edit') {
-        await mutations.update(modal.staff.staffId, values)
-      } else {
-        await mutations.create(values)
-      }
-      closeModal()
-    } catch (error) {
-      setModalError(errorMessage(error))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleChangePassword(newPassword: string) {
-    if (modal.kind !== 'password') {
-      return
-    }
-    setSaving(true)
-    setModalError(null)
-    try {
-      await mutations.changePassword(modal.staff.staffId, newPassword)
-      closeModal()
-    } catch (error) {
-      setModalError(errorMessage(error))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleToggleActive(member: Staff) {
-    setPageActionError(null)
-    try {
-      await mutations.setActive(member)
-    } catch (error) {
-      // Shown at page level: this action runs without a modal.
-      setPageActionError(errorMessage(error))
-    }
-  }
-
+  // Only the active section mounts: its queries run on demand and the other
+  // sections keep no stale state around.
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Video Club — Staff Maintenance</h1>
-        <button type="button" className="btn btn-primary" onClick={openCreate}>
-          + New staff
-        </button>
+        <h1>Video Club</h1>
+        <nav className="app-tabs" role="tablist" aria-label="Sections">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              id={`tab-${tab.id}`}
+              aria-selected={view === tab.id}
+              aria-controls={`panel-${tab.id}`}
+              className={view === tab.id ? 'tab tab-active' : 'tab'}
+              onClick={() => setView(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </header>
 
-      <section className="filters">
-        <label>
-          Search
-          <input
-            type="search"
-            name="search"
-            autoComplete="off"
-            placeholder="Name, username or email..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+      {view === 'staff' ? (
+        <div role="tabpanel" id="panel-staff" aria-labelledby="tab-staff">
+          <StaffView repository={repository} lookupRepository={lookupRepository} />
+        </div>
+      ) : null}
+
+      {view === 'customers' ? (
+        <div role="tabpanel" id="panel-customers" aria-labelledby="tab-customers">
+          <CustomersView customerRepository={customerRepository} lookupRepository={lookupRepository} />
+        </div>
+      ) : null}
+
+      {view === 'rentals' ? (
+        <div role="tabpanel" id="panel-rentals" aria-labelledby="tab-rentals">
+          <RentalsView
+            rentalRepository={rentalRepository}
+            customerRepository={customerRepository}
+            staffRepository={repository}
+            lookupRepository={lookupRepository}
           />
-        </label>
-        <label>
-          Status
-          <select
-            name="statusFilter"
-            value={activeFilter}
-            onChange={(event) => setActiveFilter(event.target.value as typeof activeFilter)}
-          >
-            <option value="">All</option>
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-          </select>
-        </label>
-      </section>
-
-      {pageError ? <p className="error-message">{pageError}</p> : null}
-      {pageActionError ? <p className="error-message">{pageActionError}</p> : null}
-
-      <div className={isStale ? 'results-stale' : undefined} aria-busy={isStale}>
-        <StaffList
-          staff={staff}
-          loading={isLoading}
-          onEdit={(member) => {
-            setModalError(null)
-            setModal({ kind: 'edit', staff: member })
-          }}
-          onChangePassword={(member) => {
-            setModalError(null)
-            setModal({ kind: 'password', staff: member })
-          }}
-          onToggleActive={(member) => void handleToggleActive(member)}
-        />
-      </div>
-
-      {modal.kind === 'create' ? (
-        <StaffForm
-          key="create"
-          staff={null}
-          addresses={addresses}
-          stores={stores}
-          saving={saving}
-          error={modalError}
-          onSave={(values) => void handleSave(values)}
-          onCancel={closeModal}
-        />
-      ) : null}
-
-      {modal.kind === 'edit' && modalStaff ? (
-        <StaffForm
-          key={`edit-${modalStaff.staffId}`}
-          staff={modalStaff}
-          addresses={addresses}
-          stores={stores}
-          saving={saving}
-          error={modalError}
-          onSave={(values) => void handleSave(values)}
-          onCancel={closeModal}
-        />
-      ) : null}
-
-      {modal.kind === 'password' && modalStaff ? (
-        <PasswordForm
-          key={`password-${modalStaff.staffId}`}
-          staff={modalStaff}
-          saving={saving}
-          error={modalError}
-          onSave={(password) => void handleChangePassword(password)}
-          onCancel={closeModal}
-        />
+        </div>
       ) : null}
     </div>
   )

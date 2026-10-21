@@ -28,4 +28,20 @@ public class LookupService
             .Select(s => new StoreOptionDto { StoreId = s.StoreId, Display = s.Display })
             .ToList();
     }
+
+    /// <summary>Films stocked at a store with their available copies (rental form).</summary>
+    public async Task<IReadOnlyList<FilmOptionDto>> GetFilmsAsync(byte storeId, CancellationToken cancellationToken = default)
+    {
+        var films = await _lookupRepository.GetFilmsAsync(storeId, cancellationToken);
+        return films
+            .Select(f => new FilmOptionDto
+            {
+                FilmId = f.FilmId,
+                Title = f.Title,
+                RentalDurationDays = f.RentalDurationDays,
+                RentalRate = f.RentalRate,
+                AvailableCopies = f.AvailableCopies,
+            })
+            .ToList();
+    }
 }

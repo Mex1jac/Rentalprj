@@ -31,4 +31,15 @@ public class LookupsController : ControllerBase
         var stores = await _lookupService.GetStoresAsync(cancellationToken);
         return Ok(stores);
     }
+
+    /// <summary>Films stocked at a store with their available copies (rental form).</summary>
+    [HttpGet("films")]
+    [ProducesResponseType<IReadOnlyList<FilmOptionDto>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<FilmOptionDto>>> GetFilms(
+        [FromQuery] byte storeId,
+        CancellationToken cancellationToken)
+    {
+        var films = await _lookupService.GetFilmsAsync(storeId, cancellationToken);
+        return Ok(films);
+    }
 }

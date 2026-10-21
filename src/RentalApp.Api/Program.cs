@@ -9,9 +9,13 @@ var builder = WebApplication.CreateBuilder(args);
 // Layered (DDD) composition: ports are implemented by infrastructure adapters.
 builder.Services.AddSingleton<MySqlConnectionFactory>();
 builder.Services.AddSingleton<IStaffRepository, StaffRepository>();
+builder.Services.AddSingleton<ICustomerRepository, CustomerRepository>();
+builder.Services.AddSingleton<IRentalRepository, RentalRepository>();
 builder.Services.AddSingleton<ILookupRepository, LookupRepository>();
 builder.Services.AddSingleton<IPasswordHasher, Sha1PasswordHasher>();
 builder.Services.AddScoped<StaffService>();
+builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<RentalService>();
 builder.Services.AddScoped<LookupService>();
 
 builder.Services.AddControllers();

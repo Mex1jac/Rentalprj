@@ -9,6 +9,8 @@ public interface ILookupRepository
 
     Task<IReadOnlyList<StoreOption>> GetStoresAsync(CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<FilmOption>> GetFilmsAsync(byte storeId, CancellationToken cancellationToken = default);
+
     Task<bool> AddressExistsAsync(ushort addressId, CancellationToken cancellationToken = default);
 
     Task<bool> StoreExistsAsync(byte storeId, CancellationToken cancellationToken = default);
