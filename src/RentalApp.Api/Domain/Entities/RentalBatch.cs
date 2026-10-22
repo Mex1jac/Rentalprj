@@ -12,5 +12,12 @@ public class RentalBatch
     public byte StoreId { get; set; }
     public DateTime RentalDate { get; set; }
     public DateTime DueDate { get; set; }
+
+    /// <summary>
+    /// Days captured by the operator (DueDate - RentalDate): used to charge
+    /// one payment per rental at (days * film rental_rate).
+    /// </summary>
+    public int RentalDays { get; set; }
+
     public IReadOnlyList<ushort> FilmIds { get; set; } = [];
 }

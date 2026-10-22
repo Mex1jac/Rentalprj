@@ -256,6 +256,9 @@ public class RentalServiceTests
 
         Assert.NotNull(capturedBatch);
         Assert.Equal(capturedBatch.RentalDate.AddDays(7), capturedBatch.DueDate);
+        // The captured days also travel to the repository: they are the
+        // multiplier of the charge-on-rental payment (days * film rate).
+        Assert.Equal(7, capturedBatch.RentalDays);
         Assert.Equal((ushort)10, capturedBatch.CustomerId);
         Assert.Equal((ushort)1, capturedBatch.StaffId);
         Assert.Equal((byte)1, capturedBatch.StoreId);

@@ -8,7 +8,8 @@ namespace RentalApp.Api.Infrastructure.Persistence;
 /// Dapper adapter for the sakila.rental table. Batch creation assigns one
 /// physical copy (inventory row) per film inside a single transaction: the
 /// candidate copy is locked with FOR UPDATE so two operators can never rent
-/// the same copy.
+/// the same copy. Every created rental also writes one payment row in the
+/// same transaction (charge-on-rental: captured days * film rental_rate).
 /// </summary>
 public class RentalRepository : IRentalRepository
 {
@@ -32,15 +33,28 @@ public class RentalRepository : IRentalRepository
         JOIN staff s ON s.staff_id = r.staff_id
         """;
 
-    /// <summary>Copies of a film at a store that have no open rental.</summary>
+    /// <summary>
+    /// Candidate copy of a film at a store with no open rental, plus the rate
+    /// charged for it (the payment amount is days * RentalRate, read from the
+    /// database at rental time — server truth, never the client preview).
+    /// </summary>
     private const string AvailableCopyQuery = """
-        SELECT i.inventory_id
+        SELECT i.inventory_id AS InventoryId,
+               f.rental_rate AS RentalRate
         FROM inventory i
+        JOIN film f ON f.film_id = i.film_id
         LEFT JOIN rental r ON r.inventory_id = i.inventory_id AND r.return_date IS NULL
         WHERE i.film_id = @FilmId
           AND i.store_id = @StoreId
           AND r.rental_id IS NULL
         """;
+
+    /// <summary>Row shape of <see cref="AvailableCopyQuery"/> (Dapper mapping).</summary>
+    private sealed class AvailableCopy
+    {
+        public uint InventoryId { get; init; }
+        public decimal RentalRate { get; init; }
+    }
 
     private readonly MySqlConnectionFactory _connectionFactory;
 
@@ -153,6 +167,15 @@ public class RentalRepository : IRentalRepository
             SELECT LAST_INSERT_ID();
             """;
 
+        // One payment per rental row (sakila model). The amount is the line
+        // charge: captured days * film rate read above, inside this same
+        // transaction. payment_date shares the rental timestamp so the receipt
+        // and the rental always show the same instant.
+        const string paymentSql = """
+            INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)
+            VALUES (@CustomerId, @StaffId, @RentalId, @Amount, @PaymentDate);
+            """;
+
         await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
@@ -175,19 +198,20 @@ public class RentalRepository : IRentalRepository
                 + "\nLIMIT 1"
                 + "\nFOR UPDATE";
 
-            var inventoryId = await connection.ExecuteScalarAsync<uint?>(
+            var copy = await connection.QuerySingleOrDefaultAsync<AvailableCopy>(
                 new CommandDefinition(
                     selectSql,
                     new { batch.StoreId, FilmId = filmId },
                     transaction,
                     cancellationToken: cancellationToken));
 
-            if (inventoryId is null)
+            if (copy is null)
             {
                 unavailableFilmIds.Add(filmId);
                 continue;
             }
 
+            var inventoryId = copy.InventoryId;
             var rentalId = await connection.ExecuteScalarAsync<ulong>(
                 new CommandDefinition(
                     insertSql,
@@ -202,8 +226,24 @@ public class RentalRepository : IRentalRepository
                     transaction,
                     cancellationToken: cancellationToken));
 
+            // Charge-on-rental: one payment line per rental, in the same
+            // transaction (a rollback of the batch rolls the charges back too).
+            await connection.ExecuteAsync(
+                new CommandDefinition(
+                    paymentSql,
+                    new
+                    {
+                        batch.CustomerId,
+                        batch.StaffId,
+                        RentalId = rentalId,
+                        Amount = batch.RentalDays * copy.RentalRate,
+                        PaymentDate = batch.RentalDate,
+                    },
+                    transaction,
+                    cancellationToken: cancellationToken));
+
             rentalIds.Add((int)rentalId);
-            assignedInventoryIds.Add(inventoryId.Value);
+            assignedInventoryIds.Add(inventoryId);
         }
 
         if (unavailableFilmIds.Count > 0)

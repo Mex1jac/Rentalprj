@@ -164,4 +164,37 @@ describe('RentalCreateForm', () => {
 
     expect(screen.getByRole('button', { name: /saving/i })).toBeDisabled()
   })
+
+  // --- Charge preview (total to charge) --------------------------------------
+
+  it('starts at zero and shows the rate without the day count in the picker', () => {
+    renderForm({ storeId: '1', films })
+
+    expect(screen.getByText('$0.00 USD')).toBeInTheDocument()
+
+    // Picker meta: availability + USD rate only (days suffix removed: the
+    // captured days live in the "Rental days" field, not in each option).
+    expect(screen.getByText('2 avail. · $4.99')).toBeInTheDocument()
+    expect(screen.queryByText(/· 3d/)).not.toBeInTheDocument()
+  })
+
+  it('multiplies the captured days by every selected rate', async () => {
+    const user = userEvent.setup()
+    renderForm({ storeId: '1', films })
+
+    // Suggested days follow ACADEMY DINOSAUR (3): 3 x 4.99 = 14.97.
+    await user.click(screen.getByRole('checkbox', { name: /ACADEMY DINOSAUR/ }))
+    expect(screen.getByText('$14.97 USD')).toBeInTheDocument()
+
+    // Adding ADAPTATION HOLES (2.99): 3 x (4.99 + 2.99) = 23.94.
+    await user.click(screen.getByRole('checkbox', { name: /ADAPTATION HOLES/ }))
+    expect(screen.getByText('$23.94 USD')).toBeInTheDocument()
+
+    // Operator overrides the days: 9 x 7.98 = 71.82. (The label carries the
+    // "Suggested" hint once films are selected, hence the regex role query.)
+    const daysField = screen.getByRole('spinbutton', { name: /Rental days/ })
+    await user.clear(daysField)
+    await user.type(daysField, '9')
+    expect(screen.getByText('$71.82 USD')).toBeInTheDocument()
+  })
 })

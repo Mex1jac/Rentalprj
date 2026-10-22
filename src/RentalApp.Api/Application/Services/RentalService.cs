@@ -131,6 +131,7 @@ public class RentalService
             StoreId = dto.StoreId,
             RentalDate = rentalDate,
             DueDate = rentalDate.AddDays(dto.RentalDays),
+            RentalDays = dto.RentalDays,
             FilmIds = dto.FilmIds,
         }, cancellationToken);
 

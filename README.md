@@ -2,7 +2,7 @@
 
 Sistema para la renta de películas de un video club: una página web donde el operador administra a los socios y da seguimiento a sus rentas.
 
-> Estado actual: en desarrollo — entregados: mantenimiento de la tabla `staff` (altas, bajas y cambios), la página de socios con renta de 1+ películas por días y devoluciones, la paginación server-side en las tablas de socios y rentas, el rediseño visual editorial (header con segmented control, héroes con conteo, tarjeta continua, badges con punto) y el CRUD del catálogo de películas (alta con copias por tienda, edición de todos los campos y borrado con guard de inventario); ver `spec.md` para el detalle y el backlog.
+> Estado actual: en desarrollo — entregados: mantenimiento de la tabla `staff` (altas, bajas y cambios), la página de socios con renta de 1+ películas por días y devoluciones, la paginación server-side en las tablas de socios y rentas, el rediseño visual editorial (header con segmented control, héroes con conteo, tarjeta continua, badges con punto), el CRUD del catálogo de películas (alta con copias por tienda, edición de todos los campos y borrado con guard de inventario) y el cobro al rentar (un `payment` por renta en la misma transacción, con el total en USD al pie del modal); ver `spec.md` para el detalle y el backlog.
 
 ## Requisitos previos
 
@@ -71,7 +71,7 @@ npm run dev
 # Backend (xUnit, 118 tests)
 dotnet test
 
-# Frontend (Vitest + React Testing Library, 203 tests)
+# Frontend (Vitest + React Testing Library, 205 tests)
 cd src\rentalmovie
 npm test
 ```

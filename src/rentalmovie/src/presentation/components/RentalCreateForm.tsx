@@ -3,6 +3,7 @@ import type { RentalFormValues } from '../../application/dtos/rentalDtos'
 import type { Customer } from '../../domain/entities/customer'
 import type { FilmOption, StoreOption } from '../../domain/entities/lookup'
 import type { Staff } from '../../domain/entities/staff'
+import { formatUsd } from '../formatUsd'
 
 const DEFAULT_RENTAL_DAYS = 6
 
@@ -55,6 +56,14 @@ export function RentalCreateForm({
   const visibleFilms = films
     .filter((film) => film.availableCopies > 0)
     .filter((film) => filter === '' || film.title.toLowerCase().includes(filter))
+
+  // Charge preview (derived during render: no effect): one line per film is
+  // days * rate, and every line shares the captured days, so the total is
+  // days * sum(rates). The server charges the same formula with the rates
+  // read from the database at rental time.
+  const daysNumber = Number(daysValue)
+  const rateSum = selectedFilms.reduce((sum, film) => sum + film.rentalRate, 0)
+  const totalAmount = (Number.isFinite(daysNumber) ? daysNumber : 0) * rateSum
 
   function handleStoreChange(value: string) {
     // The film list belongs to the store: start with a clean selection.
@@ -194,7 +203,8 @@ export function RentalCreateForm({
                   />
                   <span>{film.title}</span>
                   <span className="film-meta">
-                    {film.availableCopies} avail. · {film.rentalRate.toFixed(2)} · {film.rentalDurationDays}d
+                    {/* USD: the only currency the club charges in. */}
+                    {film.availableCopies} avail. · ${film.rentalRate.toFixed(2)}
                   </span>
                 </label>
               ))}
@@ -204,6 +214,12 @@ export function RentalCreateForm({
           <p className="muted" aria-live="polite">
             {selectedFilms.length} film(s) selected · {daysValue} day(s)
           </p>
+
+          {/* Charge preview at the bottom of the modal, in high contrast. */}
+          <div className="rental-total" aria-live="polite">
+            <span>Total to charge</span>
+            <strong>{formatUsd(totalAmount)}</strong>
+          </div>
 
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>

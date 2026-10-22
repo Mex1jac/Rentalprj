@@ -674,6 +674,32 @@ td.actions-col .btn-success:hover:not(:disabled) {
   white-space: nowrap;
 }
 
+/* Charge preview at the bottom of the rental modal: muted uppercase label
+   on the left, big high-contrast amount on the right. */
+.rental-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.rental-total strong {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-text);
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
