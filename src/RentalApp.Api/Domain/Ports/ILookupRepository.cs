@@ -11,7 +11,11 @@ public interface ILookupRepository
 
     Task<IReadOnlyList<FilmOption>> GetFilmsAsync(byte storeId, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<LanguageOption>> GetLanguagesAsync(CancellationToken cancellationToken = default);
+
     Task<bool> AddressExistsAsync(ushort addressId, CancellationToken cancellationToken = default);
 
     Task<bool> StoreExistsAsync(byte storeId, CancellationToken cancellationToken = default);
+
+    Task<bool> LanguageExistsAsync(byte languageId, CancellationToken cancellationToken = default);
 }

@@ -44,4 +44,13 @@ public class LookupService
             })
             .ToList();
     }
+
+    /// <summary>Languages of the film catalog (film form selects).</summary>
+    public async Task<IReadOnlyList<LanguageOptionDto>> GetLanguagesAsync(CancellationToken cancellationToken = default)
+    {
+        var languages = await _lookupRepository.GetLanguagesAsync(cancellationToken);
+        return languages
+            .Select(l => new LanguageOptionDto { LanguageId = l.LanguageId, Name = l.Name })
+            .ToList();
+    }
 }

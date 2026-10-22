@@ -176,6 +176,7 @@ function createLookupRepository(): LookupRepository {
     getAddresses: vi.fn(async () => addresses),
     getStores: vi.fn(async () => stores),
     getFilms: vi.fn(async (_storeId: number) => films),
+    getLanguages: vi.fn(async () => []),
   }
 }
 

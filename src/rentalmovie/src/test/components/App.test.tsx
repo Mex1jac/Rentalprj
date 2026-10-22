@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { SWRConfig } from 'swr'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConflictError } from '../../domain/errors/domainErrors'
+import type { Film } from '../../domain/entities/film'
 import type { Staff } from '../../domain/entities/staff'
 import type { LookupRepository } from '../../domain/ports/lookupRepository'
 import type { StaffListQuery, StaffRepository } from '../../domain/ports/staffRepository'
@@ -81,6 +82,34 @@ function createLookupRepository(): LookupRepository {
     getAddresses: vi.fn(async () => addresses),
     getStores: vi.fn(async () => stores),
     getFilms: vi.fn(async () => []),
+    getLanguages: vi.fn(async () => []),
+  }
+}
+
+const academyFilm: Film = {
+  filmId: 1001,
+  title: 'ACADEMY DINOSAUR',
+  description: 'A Epic Drama.',
+  releaseYear: 2006,
+  languageId: 1,
+  language: 'English',
+  originalLanguageId: null,
+  originalLanguage: null,
+  rentalDurationDays: 6,
+  rentalRate: 0.99,
+  lengthMinutes: 86,
+  replacementCost: 20.99,
+  rating: 'PG',
+  specialFeatures: ['Trailers', 'Commentaries'],
+  totalCopies: 4,
+}
+
+function createFilmRepository() {
+  return {
+    list: vi.fn(async () => ({ items: [academyFilm], page: 1, pageSize: 25, total: 1, totalPages: 1 })),
+    create: vi.fn(async () => academyFilm),
+    update: vi.fn(async () => academyFilm),
+    delete: vi.fn(async () => undefined),
   }
 }
 
@@ -284,5 +313,31 @@ describe('App mutations', () => {
 
     expect(await screen.findByText('Cannot leave right now.')).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('App films tab', () => {
+  it('switches to the film catalog and loads its first page', async () => {
+    const user = userEvent.setup()
+    const filmRepository = createFilmRepository()
+    render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <App
+          repository={createRepository()}
+          lookupRepository={createLookupRepository()}
+          filmRepository={filmRepository}
+        />
+      </SWRConfig>,
+    )
+
+    await user.click(screen.getByRole('tab', { name: 'Films' }))
+
+    expect(await screen.findByText('ACADEMY DINOSAUR')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Films' })).toHaveAttribute('aria-selected', 'true')
+    await waitFor(() =>
+      expect(filmRepository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1, pageSize: 25 }),
+      ),
+    )
   })
 })

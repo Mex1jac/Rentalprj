@@ -11,11 +11,13 @@ builder.Services.AddSingleton<MySqlConnectionFactory>();
 builder.Services.AddSingleton<IStaffRepository, StaffRepository>();
 builder.Services.AddSingleton<ICustomerRepository, CustomerRepository>();
 builder.Services.AddSingleton<IRentalRepository, RentalRepository>();
+builder.Services.AddSingleton<IFilmRepository, FilmRepository>();
 builder.Services.AddSingleton<ILookupRepository, LookupRepository>();
 builder.Services.AddSingleton<IPasswordHasher, Sha1PasswordHasher>();
 builder.Services.AddScoped<StaffService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<RentalService>();
+builder.Services.AddScoped<FilmService>();
 builder.Services.AddScoped<LookupService>();
 
 builder.Services.AddControllers();

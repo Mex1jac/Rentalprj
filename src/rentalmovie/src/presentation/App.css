@@ -286,6 +286,18 @@
   font-weight: 700;
 }
 
+/* Numeric cells (film rates, costs, durations): tabular mono figures. */
+.cell-num {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The films table carries more columns than the base min-width allows. */
+.films-table {
+  min-width: 980px;
+}
+
 /* --- Status badges (pill with dot) ------------------------------------------ */
 
 .badge {
@@ -325,6 +337,12 @@
 .badge-overdue {
   background: var(--pill-danger-bg);
   color: var(--color-danger);
+}
+
+/* Film classification (G, PG, PG-13…): neutral pill, no status meaning. */
+.badge-rating {
+  background: var(--pill-neutral-bg);
+  color: var(--color-text);
 }
 
 /* --- Actions (text links inside rows) --------------------------------------- */
@@ -557,7 +575,8 @@ td.actions-col .btn-success:hover:not(:disabled) {
 }
 
 .modal input,
-.modal select {
+.modal select,
+.modal textarea {
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--color-border);
   border-radius: 10px;
@@ -572,12 +591,39 @@ td.actions-col .btn-success:hover:not(:disabled) {
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
+  font-family: inherit;
+}
+
+.modal textarea {
+  resize: vertical;
+  min-height: 4.5rem;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+}
+
+/* --- Special features checkboxes (film form) -------------------------------- */
+
+.feature-fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.feature-fieldset legend {
+  padding: 0;
+  margin-bottom: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-muted);
 }
 
 /* --- Film picker (rental modal) -------------------------------------------- */

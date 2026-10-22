@@ -11,7 +11,8 @@ namespace RentalApp.Api.Application.Services;
 /// </summary>
 public class RentalService
 {
-    private const int MaxRentalDays = 90;
+    /// <summary>Maximum number of days an operator can grant on one rental.</summary>
+    public const int MaxRentalDays = 90;
     private const int MaxFilmsPerRental = 50;
 
     private readonly IRentalRepository _rentalRepository;

@@ -47,6 +47,21 @@ public class LookupRepository : ILookupRepository
         return stores.ToList();
     }
 
+    public async Task<IReadOnlyList<LanguageOption>> GetLanguagesAsync(CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT language_id AS LanguageId,
+                   name AS Name
+            FROM language
+            ORDER BY name
+            """;
+
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        var languages = await connection.QueryAsync<LanguageOption>(
+            new CommandDefinition(sql, cancellationToken: cancellationToken));
+        return languages.ToList();
+    }
+
     public async Task<bool> AddressExistsAsync(ushort addressId, CancellationToken cancellationToken = default)
     {
         const string sql = "SELECT COUNT(*) FROM address WHERE address_id = @AddressId";
@@ -64,6 +79,16 @@ public class LookupRepository : ILookupRepository
         await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         var count = await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(sql, new { StoreId = storeId }, cancellationToken: cancellationToken));
+        return count > 0;
+    }
+
+    public async Task<bool> LanguageExistsAsync(byte languageId, CancellationToken cancellationToken = default)
+    {
+        const string sql = "SELECT COUNT(*) FROM language WHERE language_id = @LanguageId";
+
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        var count = await connection.ExecuteScalarAsync<int>(
+            new CommandDefinition(sql, new { LanguageId = languageId }, cancellationToken: cancellationToken));
         return count > 0;
     }
 

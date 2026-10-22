@@ -19,3 +19,9 @@ export interface FilmOption {
   rentalRate: number
   availableCopies: number
 }
+
+/** Language of the film catalog (film form selects). */
+export interface LanguageOption {
+  languageId: number
+  name: string
+}

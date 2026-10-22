@@ -1,4 +1,4 @@
-import type { AddressOption, FilmOption, StoreOption } from '../../domain/entities/lookup'
+import type { AddressOption, FilmOption, LanguageOption, StoreOption } from '../../domain/entities/lookup'
 import type { LookupRepository } from '../../domain/ports/lookupRepository'
 import { mapApiError } from '../http/errorMapper'
 import { api } from '../http/httpClient'
@@ -24,6 +24,14 @@ export const lookupApiRepository: LookupRepository = {
   async getFilms(storeId) {
     try {
       return await api.get<FilmOption[]>(`/api/lookups/films?storeId=${storeId}`)
+    } catch (error) {
+      throw mapApiError(error)
+    }
+  },
+
+  async getLanguages() {
+    try {
+      return await api.get<LanguageOption[]>('/api/lookups/languages')
     } catch (error) {
       throw mapApiError(error)
     }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { customerListKey } from '../../application/queries/customerQueries'
+import { filmListKey } from '../../application/queries/filmQueries'
 import { rentalListKey } from '../../application/queries/rentalQueries'
 
 /**
@@ -34,6 +35,21 @@ describe('list cache keys with pagination', () => {
     )
     expect(rentalListKey({ status: 'open', page: 1, pageSize: 10 })).not.toBe(
       rentalListKey({ status: 'returned', page: 1, pageSize: 10 }),
+    )
+  })
+
+  it('film keys differ per page, page size and search', () => {
+    const base = { search: 'dino', page: 1, pageSize: 25 }
+
+    expect(filmListKey(base)).not.toBe(filmListKey({ ...base, page: 2 }))
+    expect(filmListKey(base)).not.toBe(filmListKey({ ...base, pageSize: 50 }))
+    expect(filmListKey(base)).not.toBe(filmListKey({ ...base, search: 'ace' }))
+    expect(filmListKey(base)).toBe(filmListKey({ ...base }))
+  })
+
+  it('film keys keep the filter parts in the same order', () => {
+    expect(filmListKey({ search: 'dino', page: 2, pageSize: 50 })).toBe(
+      'film:list:["dino",2,50]',
     )
   })
 })

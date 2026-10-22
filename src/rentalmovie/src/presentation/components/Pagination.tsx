@@ -36,6 +36,7 @@ export function Pagination({
       <label className="pagination-size">
         Rows per page
         <select
+          name="pageSize"
           value={pageSize}
           disabled={busy}
           onChange={(event) => onPageSizeChange(Number(event.target.value))}
