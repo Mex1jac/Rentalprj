@@ -2,7 +2,7 @@
 
 Sistema para la renta de películas de un video club: una página web donde el operador administra a los socios y da seguimiento a sus rentas.
 
-> Estado actual: en desarrollo — entregados: mantenimiento de la tabla `staff` (altas, bajas y cambios), la página de socios con renta de 1+ películas por días y devoluciones, y la paginación server-side en las tablas de socios y rentas; ver `spec.md` para el detalle y el backlog.
+> Estado actual: en desarrollo — entregados: mantenimiento de la tabla `staff` (altas, bajas y cambios), la página de socios con renta de 1+ películas por días y devoluciones, la paginación server-side en las tablas de socios y rentas, y el rediseño visual editorial (header con segmented control, héroes con conteo, tarjeta continua, badges con punto); ver `spec.md` para el detalle y el backlog.
 
 ## Requisitos previos
 

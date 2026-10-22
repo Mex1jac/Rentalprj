@@ -108,12 +108,21 @@ export function StaffView({ repository, lookupRepository }: StaffViewProps) {
 
   return (
     <section className="view" aria-label="Staff maintenance">
-      <div className="view-toolbar">
-        <h2>Staff maintenance</h2>
-        <button type="button" className="btn btn-primary" onClick={openCreate}>
-          + New staff
-        </button>
-      </div>
+      <header className="hero">
+        <p className="eyebrow">Staff records</p>
+        <div className="hero-heading">
+          <h2>Staff</h2>
+          <span className="count-badge">{staff.length}</span>
+        </div>
+        <div className="hero-bottom">
+          <p className="hero-description">
+            The club's counter staff: create records, manage passwords and change active status.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            + New staff
+          </button>
+        </div>
+      </header>
 
       <section className="filters">
         <label>
@@ -122,7 +131,7 @@ export function StaffView({ repository, lookupRepository }: StaffViewProps) {
             type="search"
             name="search"
             autoComplete="off"
-            placeholder="Name, username or email..."
+            placeholder="Name, username or email…"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -139,12 +148,14 @@ export function StaffView({ repository, lookupRepository }: StaffViewProps) {
             <option value="false">Inactive</option>
           </select>
         </label>
+        {pageError ? <p className="error-message">{pageError}</p> : null}
+        {pageActionError ? <p className="error-message">{pageActionError}</p> : null}
       </section>
 
-      {pageError ? <p className="error-message">{pageError}</p> : null}
-      {pageActionError ? <p className="error-message">{pageActionError}</p> : null}
-
-      <div className={isStale ? 'results-stale' : undefined} aria-busy={isStale}>
+      <div
+        className={isStale ? 'results results-end results-stale' : 'results results-end'}
+        aria-busy={isStale}
+      >
         <StaffList
           staff={staff}
           loading={isLoading}

@@ -45,7 +45,27 @@ export default function App({
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Video Club</h1>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="4" width="18" height="16" rx="2.5" />
+              <path d="M8 4v16M16 4v16M3 9h5M3 15h5M16 9h5M16 15h5" />
+            </svg>
+          </span>
+          <span>
+            <h1 className="brand-name">Video Club</h1>
+            <span className="brand-eyebrow">Front desk</span>
+          </span>
+        </div>
         <nav className="app-tabs" role="tablist" aria-label="Sections">
           {TABS.map((tab) => (
             <button

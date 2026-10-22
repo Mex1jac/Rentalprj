@@ -121,7 +121,7 @@ export function CustomerForm({ customer, addresses, stores, saving, error, onSav
                 value={form.addressId}
                 onChange={(event) => updateField('addressId', event.target.value)}
               >
-                <option value="">Select an address...</option>
+                <option value="">Select an address…</option>
                 {addresses.map((address) => (
                   <option key={address.addressId} value={address.addressId}>
                     {address.display}
@@ -137,7 +137,7 @@ export function CustomerForm({ customer, addresses, stores, saving, error, onSav
                 value={form.storeId}
                 onChange={(event) => updateField('storeId', event.target.value)}
               >
-                <option value="">Select a store...</option>
+                <option value="">Select a store…</option>
                 {stores.map((store) => (
                   <option key={store.storeId} value={store.storeId}>
                     {store.display}
@@ -152,7 +152,7 @@ export function CustomerForm({ customer, addresses, stores, saving, error, onSav
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create'}
+              {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create'}
             </button>
           </div>
         </form>

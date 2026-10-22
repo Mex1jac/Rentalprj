@@ -138,12 +138,21 @@ export function RentalsView({
 
   return (
     <section className="view" aria-label="Rentals">
-      <div className="view-toolbar">
-        <h2>Rentals</h2>
-        <button type="button" className="btn btn-primary" onClick={openCreate}>
-          + New rental
-        </button>
-      </div>
+      <header className="hero">
+        <p className="eyebrow">Rental tracking</p>
+        <div className="hero-heading">
+          <h2>Rentals</h2>
+          <span className="count-badge">{rentalPage.total}</span>
+        </div>
+        <div className="hero-bottom">
+          <p className="hero-description">
+            Every film out on loan: register rentals by days and mark returns at the counter.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            + New rental
+          </button>
+        </div>
+      </header>
 
       <section className="filters">
         <label>
@@ -152,7 +161,7 @@ export function RentalsView({
             type="search"
             name="search"
             autoComplete="off"
-            placeholder="Customer or film title..."
+            placeholder="Customer or film title…"
             value={search}
             onChange={(event) => handleSearchChange(event.target.value)}
           />
@@ -169,12 +178,17 @@ export function RentalsView({
             <option value="all">All</option>
           </select>
         </label>
+        {pageError ? <p className="error-message">{pageError}</p> : null}
+        {pageActionError ? <p className="error-message">{pageActionError}</p> : null}
+        <p className="toolbar-count">
+          {rentalPage.total} {rentalPage.total === 1 ? 'rental' : 'rentals'}
+        </p>
       </section>
 
-      {pageError ? <p className="error-message">{pageError}</p> : null}
-      {pageActionError ? <p className="error-message">{pageActionError}</p> : null}
-
-      <div className={isStale ? 'results-stale' : undefined} aria-busy={isStale}>
+      <div
+        className={isStale ? 'results results-stale' : 'results'}
+        aria-busy={isStale}
+      >
         <RentalList
           rentals={rentalPage.items}
           loading={isLoading && rentalPage.items.length === 0}

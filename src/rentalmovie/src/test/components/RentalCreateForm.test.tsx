@@ -88,7 +88,7 @@ describe('RentalCreateForm', () => {
   it('shows the loading state while the films of the store are loading', () => {
     renderForm({ storeId: '1', filmsLoading: true })
 
-    expect(screen.getByText('Loading films...')).toBeInTheDocument()
+    expect(screen.getByText('Loading films…')).toBeInTheDocument()
   })
 
   it('lists only films with available copies and filters by title', async () => {

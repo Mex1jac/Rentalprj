@@ -110,7 +110,7 @@ export function RentalCreateForm({
                 value={customerId}
                 onChange={(event) => setCustomerId(event.target.value)}
               >
-                <option value="">Select a member...</option>
+                <option value="">Select a member…</option>
                 {customers.map((customer) => (
                   <option key={customer.customerId} value={customer.customerId}>
                     {`${customer.firstName} ${customer.lastName}`}
@@ -122,7 +122,7 @@ export function RentalCreateForm({
             <label>
               Staff member
               <select name="staffId" required value={staffId} onChange={(event) => setStaffId(event.target.value)}>
-                <option value="">Select a staff member...</option>
+                <option value="">Select a staff member…</option>
                 {staff.map((member) => (
                   <option key={member.staffId} value={member.staffId}>
                     {`${member.firstName} ${member.lastName}`}
@@ -136,7 +136,7 @@ export function RentalCreateForm({
             <label>
               Store
               <select name="storeId" required value={storeId} onChange={(event) => handleStoreChange(event.target.value)}>
-                <option value="">Select a store...</option>
+                <option value="">Select a store…</option>
                 {stores.map((store) => (
                   <option key={store.storeId} value={store.storeId}>
                     {store.display}
@@ -170,7 +170,7 @@ export function RentalCreateForm({
             type="search"
             name="filmFilter"
             autoComplete="off"
-            placeholder="Filter by title..."
+            placeholder="Filter by title…"
             value={filmFilter}
             onChange={(event) => setFilmFilter(event.target.value)}
           />
@@ -178,7 +178,7 @@ export function RentalCreateForm({
           {storeId === '' ? (
             <p className="muted">Select a store to list its available films.</p>
           ) : filmsLoading ? (
-            <p className="muted">Loading films...</p>
+            <p className="muted">Loading films…</p>
           ) : visibleFilms.length === 0 ? (
             <p className="muted">No films match this filter.</p>
           ) : (
@@ -210,7 +210,7 @@ export function RentalCreateForm({
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving...' : `Rent ${selectedFilms.length} film(s)`}
+              {saving ? 'Saving…' : `Rent ${selectedFilms.length} film(s)`}
             </button>
           </div>
         </form>

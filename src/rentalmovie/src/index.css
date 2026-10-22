@@ -1,13 +1,20 @@
+/* Warm editorial design tokens (cream background, ink text, pill controls). */
 :root {
-  --color-primary: #2563eb;
-  --color-primary-dark: #1d4ed8;
-  --color-danger: #dc2626;
-  --color-success: #16a34a;
-  --color-text: #1f2937;
-  --color-muted: #6b7280;
-  --color-border: #d1d5db;
-  --color-surface: #ffffff;
-  --color-background: #f3f4f6;
+  --color-primary: #211d17;
+  --color-primary-dark: #000000;
+  --color-danger: #b23a2b;
+  --color-success: #3f6b33;
+  --color-text: #211d17;
+  --color-muted: #6f6656;
+  --color-border: #e6dfd1;
+  --color-surface: #fffdf9;
+  --color-background: #f5f1e8;
+  --pill-success-bg: #e7f0e4;
+  --pill-neutral-bg: #ece7dc;
+  --pill-danger-bg: #f7e3de;
+  --font-display: ui-serif, Georgia, 'Times New Roman', serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --radius-card: 18px;
 }
 
 * {
@@ -16,13 +23,20 @@
 
 body {
   margin: 0;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: var(--color-background);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: linear-gradient(180deg, #f8f4ec 0%, var(--color-background) 45%);
+  background-attachment: fixed;
   color: var(--color-text);
 }
 
+/* Keyboard focus stays visible everywhere, including on pill controls. */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 #root {
-  max-width: 1200px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 1.5rem;
 }

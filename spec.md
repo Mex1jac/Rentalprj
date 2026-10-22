@@ -44,6 +44,23 @@ Aplica **solo** a las tablas de Customers y Rentals (staff y el picker de pelíc
 | Tests | Backend: envelope, `CountAsync`+`GetPageAsync(limit, offset)`, `TotalPages`, página fuera de rango vacía, allowlist, `page>1` sin tamaño (xUnit/Moq). Frontend: `Pagination.test.tsx`, `paginationService.test.ts` (espejo de wording), `paginationQueries.test.ts` (claves SWR), comportamientos en vistas (navegación, cambio de tamaño, reset de página, retroceso tras baja/devolución). |
 
 
+### Delivered (Visual redesign — warm editorial style, backlog #5)
+
+Rediseño visual de toda la UI (las 3 pestañas + modales) al estilo del mockup aprobado, **manteniendo los textos en inglés** (decisión del usuario) y sin tocar la lógica DDD/SWR ni el contrato de datos.
+
+| Pieza | Detalle |
+|---|---|
+| Tokens | `index.css`: paleta crema cálida (`--color-background #f5f1e8`, superficie `#fffdf9`, tinta `#211d17`, muted `#6f6656` ≥4.5:1 sobre crema, borde `#e6dfd1`), pills de estado (`--pill-success/neutral/danger-bg`), `--font-display` (ui-serif/Georgia) para títulos y nombres de socio, `--font-mono` para IDs (`tabular-nums` en el resumen de paginación), `--radius-card 18px`; `:focus-visible` global con anillo de 2px. |
+| Header | Bloque de marca: tile oscuro con SVG de film + "Video Club" serif + "FRONT DESK" en versalitas (`h1` conservado para jerarquía); tabs como **segmented control** píldora oscura activa (roles `tablist/tab` intactos). |
+| Hero por vista | Eyebrow en versalitas (`STAFF RECORDS` / `MEMBER ROSTER` / `RENTAL TRACKING`), `h2` serif con `clamp()` + badge mono del conteo (del envelope), descripción y CTA píldora oscura a la derecha. |
+| Tarjeta continua | Toolbar (`.filters`) + tabla (`.results`) + paginación (`.pagination`) forman **una sola tarjeta**: bordes compartidos, radios solo en los extremos; los mensajes de error viven dentro del toolbar (`.filters .error-message`, `flex-basis:100%`). Staff cierra la tarjeta con `.results-end` (sin paginación). |
+| Tabla y estados | Headers en versalitas muted, celda ID en mono pequeña, `.cell-name` en serif, badges con **dot** (`.badge::before`, verde/gris/rojo), acciones como enlaces de texto que siguen siendo `<button>` (Edit oscuro, Deactivate/Return en color, hover con fondo sutil). |
+| Formularios | Modal con radio 18px, `h2` serif, labels en versalitas, inputs radius 10px, `overscroll-behavior:contain`; botones píldora. |
+| Textos | Ellipsis tipográfico `…` en placeholders, estados de carga/guardado y opciones; el assertion `Loading films…` se actualizó en `RentalCreateForm.test.tsx`. |
+| Pautas | `web-design-guidelines`: contraste (muted 4.75:1 sobre crema, pills ≥5:1), `:focus-visible` global, labels accesibles intactos (`.filters label{font-size:0}` oculta solo lo visual), `touch-action:manipulation`, `prefers-reduced-motion`, `text-wrap:balance`. `vercel-react-best-practices`: 0 estado/efectos nuevos (solo markup + CSS). |
+| Verificación | `npm test` **151/151** intactos (RTL consulta por role/label/texto) · `npm run build` tsc limpio · E2E chrome-devtools 1920×1080 / 768×1024 / 375×667 (`emulate`): sin overflow de documento, tarjeta y paginación dentro del viewport en móvil, sin errores/warnings de consola. |
+
+
 ### Frontend (`src/rentalmovie`) — cumplimiento vercel-react-best-practices
 
 | Regla skill | Implementación |

@@ -10,7 +10,7 @@ interface RentalListProps {
 
 export function RentalList({ rentals, loading, onReturn }: RentalListProps) {
   if (loading) {
-    return <p className="muted">Loading rentals...</p>
+    return <p className="muted">Loading rentals…</p>
   }
 
   if (rentals.length === 0) {
@@ -38,7 +38,7 @@ export function RentalList({ rentals, loading, onReturn }: RentalListProps) {
           {rentals.map((rental) => (
             <tr key={rental.rentalId}>
               <td>{rental.rentalId}</td>
-              <td>{rental.customer}</td>
+              <td className="cell-name">{rental.customer}</td>
               <td>{rental.filmTitle}</td>
               <td>{rental.store}</td>
               <td>{formatDate(rental.rentalDate)}</td>

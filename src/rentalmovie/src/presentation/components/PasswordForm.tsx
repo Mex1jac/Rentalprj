@@ -92,7 +92,7 @@ export function PasswordForm({ staff, saving, error, onSave, onCancel }: Passwor
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving...' : 'Change password'}
+              {saving ? 'Saving…' : 'Change password'}
             </button>
           </div>
         </form>

@@ -9,7 +9,7 @@ interface CustomerListProps {
 
 export function CustomerList({ customers, loading, onEdit, onToggleActive }: CustomerListProps) {
   if (loading) {
-    return <p className="muted">Loading members...</p>
+    return <p className="muted">Loading members…</p>
   }
 
   if (customers.length === 0) {
@@ -35,7 +35,7 @@ export function CustomerList({ customers, loading, onEdit, onToggleActive }: Cus
           {customers.map((member) => (
             <tr key={member.customerId} className={member.active ? '' : 'row-inactive'}>
               <td>{member.customerId}</td>
-              <td>{displayName(member)}</td>
+              <td className="cell-name">{displayName(member)}</td>
               <td>{member.email ?? '—'}</td>
               <td>{member.store}</td>
               <td>

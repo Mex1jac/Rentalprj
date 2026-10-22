@@ -125,12 +125,22 @@ export function CustomersView({ customerRepository, lookupRepository }: Customer
 
   return (
     <section className="view" aria-label="Customers">
-      <div className="view-toolbar">
-        <h2>Members (customers)</h2>
-        <button type="button" className="btn btn-primary" onClick={openCreate}>
-          + New customer
-        </button>
-      </div>
+      <header className="hero">
+        <p className="eyebrow">Member roster</p>
+        <div className="hero-heading">
+          <h2>Customers</h2>
+          <span className="count-badge">{customerPage.total}</span>
+        </div>
+        <div className="hero-bottom">
+          <p className="hero-description">
+            Each club member's record: search, register and change their status without leaving the
+            counter.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            + New customer
+          </button>
+        </div>
+      </header>
 
       <section className="filters">
         <label>
@@ -139,7 +149,7 @@ export function CustomersView({ customerRepository, lookupRepository }: Customer
             type="search"
             name="search"
             autoComplete="off"
-            placeholder="Name or email..."
+            placeholder="Name or email…"
             value={search}
             onChange={(event) => handleSearchChange(event.target.value)}
           />
@@ -156,12 +166,17 @@ export function CustomersView({ customerRepository, lookupRepository }: Customer
             <option value="false">Inactive</option>
           </select>
         </label>
+        {pageError ? <p className="error-message">{pageError}</p> : null}
+        {pageActionError ? <p className="error-message">{pageActionError}</p> : null}
+        <p className="toolbar-count">
+          {customerPage.total} {customerPage.total === 1 ? 'member' : 'members'}
+        </p>
       </section>
 
-      {pageError ? <p className="error-message">{pageError}</p> : null}
-      {pageActionError ? <p className="error-message">{pageActionError}</p> : null}
-
-      <div className={isStale ? 'results-stale' : undefined} aria-busy={isStale}>
+      <div
+        className={isStale ? 'results results-stale' : 'results'}
+        aria-busy={isStale}
+      >
         <CustomerList
           customers={customerPage.items}
           loading={isLoading && customerPage.items.length === 0}

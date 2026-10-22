@@ -10,7 +10,7 @@ interface StaffListProps {
 
 export function StaffList({ staff, loading, onEdit, onChangePassword, onToggleActive }: StaffListProps) {
   if (loading) {
-    return <p className="muted">Loading staff members...</p>
+    return <p className="muted">Loading staff members…</p>
   }
 
   if (staff.length === 0) {
@@ -37,7 +37,7 @@ export function StaffList({ staff, loading, onEdit, onChangePassword, onToggleAc
           {staff.map((member) => (
             <tr key={member.staffId} className={member.active ? '' : 'row-inactive'}>
               <td>{member.staffId}</td>
-              <td>{displayName(member)}</td>
+              <td className="cell-name">{displayName(member)}</td>
               <td>{member.username}</td>
               <td>{member.email ?? '—'}</td>
               <td>{member.store}</td>
