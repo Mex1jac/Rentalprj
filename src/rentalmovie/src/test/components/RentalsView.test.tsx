@@ -72,7 +72,7 @@ let rentalRows: Rental[]
  */
 function createRentalRepository() {
   return {
-    getAll: vi.fn(async (query: RentalListQuery) => {
+    list: vi.fn(async (query: RentalListQuery) => {
       let rows = rentalRows
       if (query.status === 'open') {
         rows = rows.filter((row) => row.returnDate === null)
@@ -84,7 +84,17 @@ function createRentalRepository() {
           `${row.customer}${row.filmTitle}`.toLowerCase().includes(query.search!.toLowerCase()),
         )
       }
-      return rows
+      // Mirrors the API envelope: slice only when a page size is requested.
+      const page = query.page ?? 1
+      const pageSize = query.pageSize ?? rows.length
+      const offset = (page - 1) * Math.max(pageSize, 1)
+      return {
+        items: pageSize > 0 ? rows.slice(offset, offset + pageSize) : [],
+        page,
+        pageSize,
+        total: rows.length,
+        totalPages: pageSize > 0 ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1,
+      }
     }),
     create: vi.fn(async (data: RentalCreateData) => {
       const created: Rental = {
@@ -119,9 +129,22 @@ function createRentalRepository() {
 
 function createCustomerRepository() {
   return {
-    getAll: vi.fn(async (query: CustomerListQuery) => {
-      const rows = [mary]
-      return query.active === undefined ? rows : rows.filter((row) => row.active === query.active)
+    list: vi.fn(async (query: CustomerListQuery) => {
+      let rows = [mary]
+      if (query.active !== undefined) {
+        rows = rows.filter((row) => row.active === query.active)
+      }
+      // Full list for dropdowns (no page/pageSize in the query).
+      const page = query.page ?? 1
+      const pageSize = query.pageSize ?? rows.length
+      const offset = (page - 1) * Math.max(pageSize, 1)
+      return {
+        items: pageSize > 0 ? rows.slice(offset, offset + pageSize) : [],
+        page,
+        pageSize,
+        total: rows.length,
+        totalPages: pageSize > 0 ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1,
+      }
     }),
     create: vi.fn(async (_data: unknown) => {
       throw new Error('not used in this suite')
@@ -204,7 +227,12 @@ describe('Rentals view', () => {
     const table = screen.getByRole('table')
     expect(within(table).getByText('Mary Smith')).toBeInTheDocument()
     expect(within(table).getByText('Open')).toBeInTheDocument()
-    expect(rentalRepository.getAll).toHaveBeenCalledWith({ search: undefined, status: 'open' })
+    expect(rentalRepository.list).toHaveBeenCalledWith({
+      search: undefined,
+      status: 'open',
+      page: 1,
+      pageSize: 25,
+    })
     expect(user).toBeDefined()
   })
 
@@ -290,5 +318,63 @@ describe('Rentals view', () => {
     expect(await screen.findByText('Rental with id 101 was already returned.')).toBeInTheDocument()
     // The row remains listed as open: nothing changed on the server.
     expect(within(screen.getByRole('table')).getByText('Open')).toBeInTheDocument()
+  })
+})
+
+describe('Rentals view pagination', () => {
+  beforeEach(() => {
+    // 11 open rentals: at 10 per page, page 2 holds exactly one row.
+    rentalRows = Array.from({ length: 11 }, (_, index) => ({
+      ...openRental,
+      rentalId: 101 + index,
+      filmTitle: index === 0 ? openRental.filmTitle : `FILM ${index + 1}`,
+    }))
+  })
+
+  it('applies a page size and requests the second slice', async () => {
+    const { rentalRepository } = renderApp()
+    const user = await openRentalsTab()
+
+    // The default request carries the default page (1) and page size (25).
+    await waitFor(() =>
+      expect(rentalRepository.list).toHaveBeenCalledWith({
+        search: undefined,
+        status: 'open',
+        page: 1,
+        pageSize: 25,
+      }),
+    )
+
+    await user.selectOptions(screen.getByLabelText('Rows per page'), '10')
+    expect(await screen.findByText('1–10 of 11 · Page 1 of 2')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+
+    expect(await screen.findByText('11–11 of 11 · Page 2 of 2')).toBeInTheDocument()
+    expect(await screen.findByText('FILM 11')).toBeInTheDocument()
+    expect(screen.queryByText('ACADEMY DINOSAUR')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled()
+    await waitFor(() =>
+      expect(rentalRepository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 2, pageSize: 10 }),
+      ),
+    )
+  })
+
+  it('steps back one page when the only open row of a page is returned', async () => {
+    const { rentalRepository } = renderApp()
+    const user = await openRentalsTab()
+
+    await user.selectOptions(screen.getByLabelText('Rows per page'), '10')
+    await user.click(await screen.findByRole('button', { name: 'Next page' }))
+    expect(await screen.findByText('11–11 of 11 · Page 2 of 2')).toBeInTheDocument()
+
+    const row = screen.getByText('FILM 11').closest('tr')
+    await user.click(within(row!).getByRole('button', { name: 'Return' }))
+
+    await waitFor(() => expect(rentalRepository.markReturned).toHaveBeenCalledWith(111))
+    // The row left the "Open" filter, so the view steps back to page 1.
+    expect(await screen.findByText('1–10 of 10 · Page 1 of 1')).toBeInTheDocument()
+    expect(screen.getByText('ACADEMY DINOSAUR')).toBeInTheDocument()
   })
 })

@@ -10,8 +10,9 @@
 
 | # | Tarea | Prioridad | Estado | Notas |
 |---|-------|-----------|--------|-------|
-| Task-01 | Página de mantenimiento de la tabla `staff` (altas, bajas y cambios, con ocultamiento de password) | Alta | Completada | Backend DDD + Dapper (`RentalApp.Api`) y frontend React DDD (`src/rentalmovie`). Baja lógica vía campo `active`. Tests: **71 backend (xUnit) + 126 frontend (Vitest)**. |
+| Task-01 | Página de mantenimiento de la tabla `staff` (altas, bajas y cambios, con ocultamiento de password) | Alta | Completada | Backend DDD + Dapper (`RentalApp.Api`) y frontend React DDD (`src/rentalmovie`). Baja lógica vía campo `active`. |
 | Task-02 | pagina de socios donde puedan hacer la renta de 1 o mas peliculas, se debe considerar la renta por dias  | Alta | Completada | CRUD de socios (`customer`) + renta de 1+ películas **por días** con devolución. Due date persistido (migración `db/migrations/001_add_rental_due_date.sql`, 16,044 filas backfilleadas). Batch de renta con transacción + `FOR UPDATE`. Ver detalle abajo. |
+| backlog #4 | paginación server-side en las tablas de socios y rentas (tamaño de página seleccionable) | Alta | Completada | Envelope `{items, page, pageSize, total, totalPages}` con `LIMIT/OFFSET` + `COUNT` en MySQL; allowlist 10/25/50/100 (default 25 en la UI). Ver detalle abajo. |
 
 ### Delivered (Members & rentals page — Task-02)
 
@@ -28,17 +29,33 @@
 | Migración | `rental.due_date DATETIME NULL` + backfill con `DATE_ADD(rental_date, INTERVAL film.rental_duration DAY)` (aplicada, 16,044 filas). |
 
 
+### Delivered (Server-side pagination — backlog #4)
+
+Aplica **solo** a las tablas de Customers y Rentals (staff y el picker de películas del formulario de renta quedan fuera). Los endpoints de lista siempre devuelven un único contrato — envelope — para no necesitar dos formas de leer la respuesta:
+
+| Regla | Detalle |
+|---|---|
+| Contrato | `GET /api/customers \| /api/rentals?search=&active\|status=&page=&pageSize=` → `{ items, page, pageSize, total, totalPages }` (`PagedResultDto<T>`; `totalPages` se calcula = `ceil(total/pageSize)`, mínimo 1). |
+| Sin `pageSize` | **Lista completa** en el mismo envelope (`pageSize = total`, `totalPages = 1`) — así el dropdown de socios del formulario de renta sigue pidiendo todos los activos con una sola forma de respuesta (`GET /api/customers?active=true` → 599 filas). En rentals sin `pageSize` el repositorio mantiene el tope `LIMIT 500` por seguridad (16k+ filas en sakila). |
+| Allowlist | `page ≥ 1`; `pageSize ∈ {10, 25, 50, 100}` (`Application/Pagination.cs`, espejo en `paginationService.ts` con el mismo texto). Viaciones → **400** `ValidationException` ("Page size must be one of: 10, 25, 50, 100." / "Page size is required when the page is greater than 1." / "Page must be greater than or equal to 1."). |
+| SQL | `Domain/Ports` ganan `CountAsync` + `GetPageAsync(limit, offset)`; repositorios comparten el WHERE (`WhereClause` / `BuildWhereClause`) entre lista completa, página y conteo. El conteo de customers no necesita joins de address; el de rentals omite el join de staff. Orden estable: customers `last_name, first_name`; rentals `rental_date DESC, rental_id DESC` (evita filas saltando entre páginas). |
+| Frontend | Estado `page`/`pageSize` en las vistas; el puerto `list()` reemplaza a `getAll()` y devuelve `PagedResult<T>`; SWR con clave por `[search, filtro, page, pageSize]` + `keepPreviousData` (la página anterior permanece mientras carga la nueva, la tabla se atenúa con `.results-stale`/`aria-busy`). Cualquier cambio de filtro/búsqueda/tamaño reinicia a `page 1` dentro del handler (sin `useEffect`). Tras desactivar (filtro Active) o devolver (filtro Open) el **único** ítem de una página con `page > 1`, la vista retrocede una página en el callback de la mutación (sin página vacía). |
+| Componente | `presentation/components/Pagination.tsx` (dumb): select "Rows per page" con el allowlist, resumen `aria-live="polite"` (`1–25 of 599 · Page 1 of 24`), botones ‹/› con `aria-label` deshabilitados en los límites y `busy` durante la carga. `App.css` `.pagination` con `flex-wrap` (centrado en ≤560 px). |
+| Tests | Backend: envelope, `CountAsync`+`GetPageAsync(limit, offset)`, `TotalPages`, página fuera de rango vacía, allowlist, `page>1` sin tamaño (xUnit/Moq). Frontend: `Pagination.test.tsx`, `paginationService.test.ts` (espejo de wording), `paginationQueries.test.ts` (claves SWR), comportamientos en vistas (navegación, cambio de tamaño, reset de página, retroceso tras baja/devolución). |
+
+
 ### Frontend (`src/rentalmovie`) — cumplimiento vercel-react-best-practices
 
 | Regla skill | Implementación |
 |---|---|
-| `client-swr-dedup` | Lecturas con **SWR** dentro de `application/queries`: claves estables por combinación de filtros (`staff:list:`, `customer:list:`, `rental:list:[search,status]`), dedup de peticiones y sin condiciones de carrera; lookups cacheados (`lookup:addresses`/`lookup:stores`/`lookup:films:{storeId}` — deshabilitada hasta elegir tienda). Revalidación pos-mutación con `mutate` **con scope** (`useSWRConfig`) filtrando el prefijo correspondiente: staff → `staff:list:`; customers → `customer:list:` + `rental:list:` (el nombre del socio aparece en filas de renta); rentals → `rental:list:` + `lookup:films:` (el stock cambia con cada renta/devolución). |
+| `client-swr-dedup` | Lecturas con **SWR** dentro de `application/queries`: claves estables por combinación de filtros **y página** (`staff:list:`, `customer:list:[search,active,page,pageSize]`, `rental:list:[search,status,page,pageSize]` — la pestaña de paginación solo existe en customers/rentals), dedup de peticiones, `keepPreviousData` (la página anterior permanece visible hasta que la nueva responda) y sin condiciones de carrera: una respuesta lenta de una página jamás pisa la de otra; lookups cacheados (`lookup:addresses`/`lookup:stores`/`lookup:films:{storeId}` — deshabilitada hasta elegir tienda). Revalidación pos-mutación con `mutate` **con scope** (`useSWRConfig`) filtrando el prefijo correspondiente: staff → `staff:list:`; customers → `customer:list:` + `rental:list:` (el nombre del socio aparece en filas de renta); rentals → `rental:list:` + `lookup:films:` (el stock cambia con cada renta/devolución). |
 | `rerender-derived-state-no-effect` | `StaffForm` ya no resetea estado en `useEffect`: el estado se deriva de la prop en el inicializador y el padre monta con `key={`edit-${staffId}`}` / `key="create"`. |
 | `rerender-use-deferred-value` | La búsqueda usa `useDeferredValue(search)`; mientras se resuelve la clave nueva, la tabla se atenúa (`.results-stale`, `aria-busy`). |
 | Accesibilidad | Labels asociados con `htmlFor`/`id`, `name`/`autoComplete` en todos los campos, `role=dialog`+`aria-modal`, `aria-label` en mostrar/ocultar password. Consola Chrome sin errores ni issues. |
 
-- **Tests frontend:** Vitest 5 + React Testing Library + jsdom → `npm test` en `src/rentalmovie` → **126 tests / 16 archivos** (`domain` 4, `application` 40, `infrastructure` 29, `components` 53). Los tests de presentación inyectan **puertos fake** (ya no se mockea `fetch` global en `App`); el transporte se mockea solo en tests de infraestructura. Las vistas se prueban a través de `App` (cambio de pestaña + flujo completo con repositorios en memoria).
+- **Tests frontend:** Vitest 5 + React Testing Library + jsdom → `npm test` en `src/rentalmovie` → **151 tests / 19 archivos** (`domain` 4, `application` 46, `infrastructure` 29, `components` 72; incluye `Pagination.test.tsx`, `paginationService.test.ts`, `paginationQueries.test.ts` y los bloques de paginación en las vistas). Los tests de presentación inyectan **puertos fake** (ya no se mockea `fetch` global en `App`); el transporte se mockea solo en tests de infraestructura. Las vistas se prueban a través de `App` (cambio de pestaña + flujo completo con repositorios en memoria).
 - **Responsive (verificado con MCP chrome-devtools en 3 resoluciones):** Desktop 1920×1080 ✅, Tablet 768×1024 ✅, Móvil 375×667 ✅. Sin scroll horizontal en la página: la tabla vive en `.table-scroll` con `overflow-x:auto` y `min-width:720px`; los `<select>` del modal se limitan con `width:100%` (603 direcciones no desbordan el modal en móvil). La navegación por pestañas usa `flex-wrap` para no desbordar en móvil.
+  - **Paginación verificada en las 3 resoluciones:** 1920 (`1–25 of 599 · Page 1 of 24` → Next `26–50 … Page 2 of 24` 25 filas → 50 por página `1–50 … Page 1 of 12` 50 filas; rentals `1–25 of 182 · Page 1 of 8`), 768 (`.pagination` de 705 px en una sola fila, sin overflow) y 375 (viewport vía `emulate`: `document.scrollWidth = 375`, `.pagination` envuelto 327×96 px **dentro** del viewport, Next → página 2 funcional). Sin errores/warnings de consola. En 375 px `resize_page` se limita a ~500 px, así que se usa `emulate({ viewport: "375x667x2,mobile,touch" })` (recarga la SPA → snapshot fresco antes de cada click).
   - *Task-02:* las 3 resoluciones re-verificadas sobre las pestañas **Customers** y **Rentals** (listado, filtros apilados en móvil y modal "New rental" de 343 px dentro de 375 px, sin scroll de página). Nota: `resize_page` no baja de ~500 px (mínimo de la ventana de Chrome); para probar 375 px reales hay que usar `emulate({ viewport: "375x667x2,mobile,touch" })` — la emulación recarga la página (la SPA vuelve a la pestaña inicial).
   - *E2E Task-02 (chrome-devtools):* alta de socio "E2E Tester" (ID 600) → renta de 2 películas (ACADEMY DINOSAUR + AGENT TRUMAN) con 10 días capturados por el operador → 2 filas creadas (16050/16051, `due_date` = `rental_date` + 10 días, instantes exactos) → devolución de 16051 (sale del filtro Open, badge "Returned" en All, guard de doble devolución intacto). Consola del navegador sin errores. *Tras aplicar la migración 002 (fin del desfase de huso horario):* sonda vía API con `rentalDate` local consistente (`20/10` + `22/10`); todos los datos de prueba fueron eliminados (BD de vuelta a 599 socios / 16,044 rentas).
 
@@ -72,12 +89,12 @@ Notas:
 | GET | `/api/lookups/addresses` | Direcciones para el select del formulario |
 | GET | `/api/lookups/stores` | Tiendas para el select del formulario |
 | GET | `/api/lookups/films?storeId=` | Películas de una tienda con copias disponibles, `rental_duration` y `rental_rate` (incluye las que tienen 0 copias, para los mensajes de conflicto) |
-| GET | `/api/customers?search=&active=` | Lista de socios con búsqueda y filtro de estado |
+| GET | `/api/customers?search=&active=&page=&pageSize=` | Lista de socios con búsqueda y filtro de estado. Devuelve envelope `{items,page,pageSize,total,totalPages}`; sin `pageSize` → lista completa (dropdown del formulario de renta); `page≥1`, `pageSize∈{10,25,50,100}` → 400 en caso contrario |
 | GET | `/api/customers/{id}` | Detalle de un socio |
 | POST | `/api/customers` | Alta de socio (`create_date` lo pone el servicio: la columna no tiene default) |
 | PUT | `/api/customers/{id}` | Cambio de datos del socio |
 | PUT | `/api/customers/{id}/active` | Baja lógica / reactivación (409 si tiene rentas abiertas) |
-| GET | `/api/rentals?search=&status=` | Lista de rentas. `status` = `open`\|`returned`\|`all`, **default `open`**; búsqueda por nombre de socio o título; `LIMIT 500` |
+| GET | `/api/rentals?search=&status=&page=&pageSize=` | Lista de rentas. `status` = `open`\|`returned`\|`all`, **default `open`**; búsqueda por nombre de socio o título; envelope `{items,page,pageSize,total,totalPages}`; con `LIMIT 500` solo cuando no se envía `pageSize` |
 | GET | `/api/rentals/{id}` | Detalle de una renta |
 | POST | `/api/rentals` | **Renta en lote**: `{customerId, staffId, storeId, rentalDays, filmIds[]}` → 201 con las filas creadas (transacción, todo-o-nada) |
 | PUT | `/api/rentals/{id}/return` | Devolución (guard anti-doble-devolución → 409) |

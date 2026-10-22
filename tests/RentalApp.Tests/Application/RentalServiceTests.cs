@@ -300,12 +300,58 @@ public class RentalServiceTests
         _rentalRepository.Setup(r => r.GetAllAsync("mary", RentalListStatus.Open, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Rental> { overdue, returnedLate });
 
+        // No pageSize: the repository returns the (capped) full list.
         var result = await _service.GetListAsync("mary", RentalListStatus.Open);
 
-        Assert.Equal(2, result.Count);
-        Assert.True(result[0].Overdue);
-        Assert.False(result[1].Overdue);
-        Assert.NotNull(result[1].ReturnDate);
+        Assert.Equal(2, result.Items.Count);
+        Assert.True(result.Items[0].Overdue);
+        Assert.False(result.Items[1].Overdue);
+        Assert.NotNull(result.Items[1].ReturnDate);
+    }
+
+    [Fact]
+    public async Task GetList_WithPageSize_UsesCountAndSlice_AndBuildsEnvelope()
+    {
+        var pageRows = Enumerable.Range(500, 10).Select(id => SampleRental(id)).ToList();
+        _rentalRepository.Setup(r => r.CountAsync("mary", RentalListStatus.Open, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(87);
+        _rentalRepository.Setup(r => r.GetPageAsync("mary", RentalListStatus.Open, 10, 20, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(pageRows);
+
+        var result = await _service.GetListAsync("mary", RentalListStatus.Open, page: 3, pageSize: 10);
+
+        Assert.Equal(10, result.Items.Count);
+        Assert.Equal(3, result.Page);
+        Assert.Equal(10, result.PageSize);
+        Assert.Equal(87, result.Total);
+        Assert.Equal(9, result.TotalPages); // ceil(87 / 10)
+        _rentalRepository.Verify(r => r.GetPageAsync("mary", RentalListStatus.Open, 10, 20, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    public async Task GetList_PageBelowOne_ThrowsValidation(int page)
+    {
+        await Assert.ThrowsAsync<ValidationException>(
+            () => _service.GetListAsync(null, RentalListStatus.Open, page: page, pageSize: 10));
+    }
+
+    [Theory]
+    [InlineData(15)]
+    [InlineData(1000)]
+    public async Task GetList_PageSizeOutsideAllowlist_ThrowsValidation(int pageSize)
+    {
+        var exception = await Assert.ThrowsAsync<ValidationException>(
+            () => _service.GetListAsync(null, RentalListStatus.Open, page: 1, pageSize: pageSize));
+        Assert.Contains("Page size must be one of", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetList_PageAboveOneWithoutPageSize_ThrowsValidation()
+    {
+        await Assert.ThrowsAsync<ValidationException>(
+            () => _service.GetListAsync(null, RentalListStatus.Open, page: 2, pageSize: null));
     }
 
     [Fact]

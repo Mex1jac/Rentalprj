@@ -31,18 +31,35 @@ afterEach(() => {
 })
 
 describe('customerApiRepository', () => {
-  it('getAll with no filters requests /api/customers', async () => {
-    const fetchMock = stubFetch([])
+  it('list with no filters requests /api/customers (full list for dropdowns)', async () => {
+    const fetchMock = stubFetch({ items: [], page: 1, pageSize: 0, total: 0, totalPages: 1 })
 
-    await customerApiRepository.getAll({})
+    await customerApiRepository.list({})
 
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:5174/api/customers', expect.anything())
   })
 
-  it('getAll encodes the search and status filters', async () => {
-    const fetchMock = stubFetch([])
+  it('list encodes the search, status and pagination params', async () => {
+    const fetchMock = stubFetch({ items: [], page: 2, pageSize: 25, total: 0, totalPages: 1 })
 
-    await customerApiRepository.getAll({ search: 'mary', active: true })
+    const result = await customerApiRepository.list({
+      search: 'mary',
+      active: true,
+      page: 2,
+      pageSize: 25,
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:5174/api/customers?search=mary&active=true&page=2&pageSize=25',
+      expect.anything(),
+    )
+    expect(result).toEqual({ items: [], page: 2, pageSize: 25, total: 0, totalPages: 1 })
+  })
+
+  it('list keeps the full-list contract when only the page is omitted', async () => {
+    const fetchMock = stubFetch({ items: [], page: 1, pageSize: 0, total: 0, totalPages: 1 })
+
+    await customerApiRepository.list({ search: 'mary', active: true })
 
     expect(fetchMock).toHaveBeenCalledWith(
       'http://localhost:5174/api/customers?search=mary&active=true',

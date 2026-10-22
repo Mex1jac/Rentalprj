@@ -146,13 +146,78 @@ public class CustomerServiceTests
         _customerRepository.Setup(r => r.GetAllAsync("mary", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Customer> { SampleCustomer() });
 
+        // No pageSize: the repository returns the full list in one envelope.
         var result = await _service.GetListAsync("mary", true);
 
-        var item = Assert.Single(result);
+        var item = Assert.Single(result.Items);
         Assert.Equal((ushort)10, item.CustomerId);
         Assert.Equal("47 MySakila Drive, Albertville", item.Address);
         Assert.Equal("Store 1", item.Store);
         Assert.True(item.Active);
+        Assert.Equal(1, result.Page);
+        Assert.Equal(1, result.PageSize);
+        Assert.Equal(1, result.Total);
+        Assert.Equal(1, result.TotalPages);
+    }
+
+    [Fact]
+    public async Task GetList_WithPageSize_UsesCountAndSlice_AndBuildsEnvelope()
+    {
+        var pageRows = Enumerable.Range(20, 25).Select(id => SampleCustomer((ushort)id)).ToList();
+        _customerRepository.Setup(r => r.CountAsync("mary", true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(551);
+        _customerRepository.Setup(r => r.GetPageAsync("mary", true, 25, 25, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(pageRows);
+
+        var result = await _service.GetListAsync("mary", true, page: 2, pageSize: 25);
+
+        Assert.Equal(25, result.Items.Count);
+        Assert.Equal(2, result.Page);
+        Assert.Equal(25, result.PageSize);
+        Assert.Equal(551, result.Total);
+        Assert.Equal(23, result.TotalPages); // ceil(551 / 25)
+        _customerRepository.Verify(r => r.GetPageAsync("mary", true, 25, 25, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetList_PageOutsideTheResult_ReturnsEmptyPage()
+    {
+        _customerRepository.Setup(r => r.CountAsync(null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(30);
+        _customerRepository.Setup(r => r.GetPageAsync(null, null, 10, 100, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Customer>());
+
+        var result = await _service.GetListAsync(null, null, page: 11, pageSize: 10);
+
+        Assert.Empty(result.Items);
+        Assert.Equal(11, result.Page);
+        Assert.Equal(3, result.TotalPages);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task GetList_PageBelowOne_ThrowsValidation(int page)
+    {
+        await Assert.ThrowsAsync<ValidationException>(
+            () => _service.GetListAsync(null, null, page: page, pageSize: 10));
+    }
+
+    [Theory]
+    [InlineData(5)]
+    [InlineData(500)]
+    public async Task GetList_PageSizeOutsideAllowlist_ThrowsValidation(int pageSize)
+    {
+        var exception = await Assert.ThrowsAsync<ValidationException>(
+            () => _service.GetListAsync(null, null, page: 1, pageSize: pageSize));
+        Assert.Contains("Page size must be one of", exception.Message);
+    }
+
+    [Fact]
+    public async Task GetList_PageAboveOneWithoutPageSize_ThrowsValidation()
+    {
+        await Assert.ThrowsAsync<ValidationException>(
+            () => _service.GetListAsync(null, null, page: 2, pageSize: null));
     }
 
     [Fact]

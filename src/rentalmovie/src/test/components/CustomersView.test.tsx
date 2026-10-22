@@ -4,6 +4,8 @@ import { SWRConfig } from 'swr'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConflictError } from '../../domain/errors/domainErrors'
 import type { Customer } from '../../domain/entities/customer'
+import type { Rental } from '../../domain/entities/rental'
+import { emptyPage } from '../../domain/entities/pagedResult'
 import type { LookupRepository } from '../../domain/ports/lookupRepository'
 import type { CustomerListQuery } from '../../domain/ports/customerRepository'
 import type { RentalRepository } from '../../domain/ports/rentalRepository'
@@ -34,7 +36,7 @@ let customerRows: Customer[]
  */
 function createCustomerRepository() {
   return {
-    getAll: vi.fn(async (query: CustomerListQuery) => {
+    list: vi.fn(async (query: CustomerListQuery) => {
       let rows = customerRows
       if (query.search) {
         rows = rows.filter((row) =>
@@ -44,7 +46,17 @@ function createCustomerRepository() {
       if (query.active !== undefined) {
         rows = rows.filter((row) => row.active === query.active)
       }
-      return rows
+      // Mirrors the API envelope: slice only when a page size is requested.
+      const page = query.page ?? 1
+      const pageSize = query.pageSize ?? rows.length
+      const offset = (page - 1) * Math.max(pageSize, 1)
+      return {
+        items: pageSize > 0 ? rows.slice(offset, offset + pageSize) : [],
+        page,
+        pageSize,
+        total: rows.length,
+        totalPages: pageSize > 0 ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1,
+      }
     }),
     create: vi.fn(async (data) => {
       const created: Customer = {
@@ -95,7 +107,7 @@ function renderApp() {
   const staffRepository = createStaffRepository()
   const lookupRepository = createLookupRepository()
   const rentalRepository = {
-    getAll: vi.fn(async () => []),
+    list: vi.fn(async () => emptyPage<Rental>(1, 25)),
     create: vi.fn(async () => []),
     markReturned: vi.fn(async () => {
       throw new Error('not used in this suite')
@@ -230,5 +242,107 @@ describe('Customers view', () => {
 
     expect(await screen.findByText('Address with id 99 does not exist.')).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: /new customer/i })).toBeInTheDocument()
+  })
+})
+
+describe('Customers view pagination', () => {
+  beforeEach(() => {
+    // 30 rows: two full pages of 25 plus a short second page.
+    customerRows = Array.from({ length: 30 }, (_, index) => ({
+      ...mary,
+      customerId: index + 1,
+      firstName: `Member${index + 1}`,
+    }))
+  })
+
+  it('starts on page 1 with 25 rows and moves to the second slice', async () => {
+    const user = userEvent.setup()
+    const { customerRepository } = renderApp()
+
+    await user.click(screen.getByRole('tab', { name: 'Customers' }))
+    expect(await screen.findByText('Member1 Smith')).toBeInTheDocument()
+
+    // The first request carries the default page size.
+    await waitFor(() =>
+      expect(customerRepository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1, pageSize: 25 }),
+      ),
+    )
+    expect(screen.getByText('1–25 of 30 · Page 1 of 2')).toBeInTheDocument()
+    expect(screen.queryByText('Member30 Smith')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+
+    expect(await screen.findByText('26–30 of 30 · Page 2 of 2')).toBeInTheDocument()
+    expect(await screen.findByText('Member30 Smith')).toBeInTheDocument()
+    expect(screen.queryByText('Member1 Smith')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled()
+    await waitFor(() =>
+      expect(customerRepository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 2, pageSize: 25 }),
+      ),
+    )
+  })
+
+  it('applies a new page size from the selector', async () => {
+    const user = userEvent.setup()
+    const { customerRepository } = renderApp()
+
+    await user.click(screen.getByRole('tab', { name: 'Customers' }))
+    expect(await screen.findByText('Member1 Smith')).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('Rows per page'), '10')
+
+    expect(await screen.findByText('1–10 of 30 · Page 1 of 3')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(customerRepository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1, pageSize: 10 }),
+      ),
+    )
+  })
+
+  it('restarts at page 1 when the search changes from a deeper page', async () => {
+    const user = userEvent.setup()
+    const { customerRepository } = renderApp()
+
+    await user.click(screen.getByRole('tab', { name: 'Customers' }))
+    await user.click(await screen.findByRole('button', { name: 'Next page' }))
+    await screen.findByText('26–30 of 30 · Page 2 of 2')
+
+    await user.type(screen.getByLabelText('Search'), 'member1')
+
+    await waitFor(() =>
+      expect(customerRepository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ search: 'member1', page: 1 }),
+      ),
+    )
+    // 'member1' matches Member1 + Member10..Member19 as a substring.
+    expect(await screen.findByText('1–11 of 11 · Page 1 of 1')).toBeInTheDocument()
+  })
+
+  it('steps back one page when the only row of a page is deactivated', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    // 11 rows at 10 per page: page 2 holds exactly one member.
+    customerRows = Array.from({ length: 11 }, (_, index) => ({
+      ...mary,
+      customerId: index + 1,
+      firstName: `Member${index + 1}`,
+    }))
+
+    await user.click(screen.getByRole('tab', { name: 'Customers' }))
+    await user.selectOptions(screen.getByLabelText('Status'), 'true')
+    await user.selectOptions(screen.getByLabelText('Rows per page'), '10')
+    expect(await screen.findByText('1–10 of 11 · Page 1 of 2')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(await screen.findByText('11–11 of 11 · Page 2 of 2')).toBeInTheDocument()
+
+    const row = screen.getByText('Member11 Smith').closest('tr')
+    await user.click(within(row!).getByRole('button', { name: 'Deactivate' }))
+
+    // The row leaves the "Active" filter, so the view steps back to page 1.
+    expect(await screen.findByText('1–10 of 10 · Page 1 of 1')).toBeInTheDocument()
+    expect(screen.getByText('Member1 Smith')).toBeInTheDocument()
   })
 })

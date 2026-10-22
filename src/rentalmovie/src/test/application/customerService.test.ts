@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { CustomerFormValues } from '../../application/dtos/customerDtos'
 import { createCustomerService, normalizeCustomerForm } from '../../application/services/customerService'
 import type { Customer } from '../../domain/entities/customer'
+import { emptyPage } from '../../domain/entities/pagedResult'
 import { ValidationError } from '../../domain/errors/domainErrors'
 import type { CustomerListQuery } from '../../domain/ports/customerRepository'
 
@@ -15,7 +16,7 @@ const validValues: CustomerFormValues = {
 
 function makeRepository() {
   return {
-    getAll: vi.fn(async (_query: CustomerListQuery) => [] as Customer[]),
+    list: vi.fn(async (_query: CustomerListQuery) => emptyPage<Customer>(1, 25)),
     create: vi.fn(async (_data: unknown) => ({}) as Customer),
     update: vi.fn(async (_customerId: number, _data: unknown) => ({}) as Customer),
     setActive: vi.fn(async (_customerId: number, _active: boolean) => undefined),

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using RentalApp.Api.Application;
 using RentalApp.Api.Application.Dtos;
 using RentalApp.Api.Application.Services;
 
@@ -17,13 +18,16 @@ public class CustomerController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType<IReadOnlyList<CustomerDto>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<CustomerDto>>> GetAll(
+    [ProducesResponseType<PagedResultDto<CustomerDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResultDto<CustomerDto>>> GetAll(
         [FromQuery] string? search,
         [FromQuery] bool? active,
-        CancellationToken cancellationToken)
+        [FromQuery] int page = Pagination.DefaultPage,
+        [FromQuery] int? pageSize = null,
+        CancellationToken cancellationToken = default)
     {
-        var customers = await _customerService.GetListAsync(search, active, cancellationToken);
+        var customers = await _customerService.GetListAsync(search, active, page, pageSize, cancellationToken);
         return Ok(customers);
     }
 

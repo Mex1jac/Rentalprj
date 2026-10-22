@@ -31,13 +31,39 @@ public class RentalService
         _lookupRepository = lookupRepository;
     }
 
-    public async Task<IReadOnlyList<RentalDto>> GetListAsync(
+    public async Task<PagedResultDto<RentalDto>> GetListAsync(
         string? search,
         RentalListStatus status,
+        int page = Pagination.DefaultPage,
+        int? pageSize = null,
         CancellationToken cancellationToken = default)
     {
-        var rentals = await _rentalRepository.GetAllAsync(search, status, cancellationToken);
-        return rentals.Select(MapToDto).ToList();
+        Pagination.Validate(page, pageSize);
+
+        if (pageSize is null)
+        {
+            // Unbounded list (rentals are capped by the repository at 500 rows).
+            var all = await _rentalRepository.GetAllAsync(search, status, cancellationToken);
+            return new PagedResultDto<RentalDto>
+            {
+                Items = all.Select(MapToDto).ToList(),
+                Page = 1,
+                PageSize = all.Count,
+                Total = all.Count,
+            };
+        }
+
+        var total = await _rentalRepository.CountAsync(search, status, cancellationToken);
+        var rows = await _rentalRepository.GetPageAsync(
+            search, status, pageSize.Value, (page - 1) * pageSize.Value, cancellationToken);
+
+        return new PagedResultDto<RentalDto>
+        {
+            Items = rows.Select(MapToDto).ToList(),
+            Page = page,
+            PageSize = pageSize.Value,
+            Total = total,
+        };
     }
 
     public async Task<RentalDto> GetByIdAsync(int rentalId, CancellationToken cancellationToken = default)

@@ -22,6 +22,15 @@ public class CustomerRepository : ICustomerRepository
         JOIN city ci ON ci.city_id = a.city_id
         """;
 
+    /// <summary>Filters shared by the full list, the paged list and the count.</summary>
+    private const string WhereClause = """
+        WHERE (@Active IS NULL OR c.active = @Active)
+          AND (@Search IS NULL
+               OR c.first_name LIKE @SearchPattern
+               OR c.last_name LIKE @SearchPattern
+               OR c.email LIKE @SearchPattern)
+        """;
+
     private readonly MySqlConnectionFactory _connectionFactory;
 
     public CustomerRepository(MySqlConnectionFactory connectionFactory)
@@ -34,25 +43,65 @@ public class CustomerRepository : ICustomerRepository
         bool? active,
         CancellationToken cancellationToken = default)
     {
-        var sql = BaseSelect + "\n" + """
-            WHERE (@Active IS NULL OR c.active = @Active)
-              AND (@Search IS NULL
-                   OR c.first_name LIKE @SearchPattern
-                   OR c.last_name LIKE @SearchPattern
-                   OR c.email LIKE @SearchPattern)
-            ORDER BY c.last_name, c.first_name
-            """;
+        var sql = BaseSelect + "\n" + WhereClause + "\nORDER BY c.last_name, c.first_name";
 
-        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        var (normalizedSearch, searchPattern) = NormalizeSearch(search);
         var parameters = new
         {
             Active = active,
             Search = normalizedSearch,
-            SearchPattern = normalizedSearch is null ? null : $"%{EscapeLikePattern(normalizedSearch)}%",
+            SearchPattern = searchPattern,
         };
 
         await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
-        var customers = await connection.QueryAsync<Customer>(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+        var customers = await connection.QueryAsync<Customer>(
+            new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+        return customers.ToList();
+    }
+
+    public async Task<int> CountAsync(string? search, bool? active, CancellationToken cancellationToken = default)
+    {
+        // The filters only touch customer columns, so no address join is needed.
+        var sql = "SELECT COUNT(*) FROM customer c" + "\n" + WhereClause;
+
+        var (normalizedSearch, searchPattern) = NormalizeSearch(search);
+        var parameters = new
+        {
+            Active = active,
+            Search = normalizedSearch,
+            SearchPattern = searchPattern,
+        };
+
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        return await connection.ExecuteScalarAsync<int>(
+            new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+    }
+
+    public async Task<IReadOnlyList<Customer>> GetPageAsync(
+        string? search,
+        bool? active,
+        int limit,
+        int offset,
+        CancellationToken cancellationToken = default)
+    {
+        var sql = BaseSelect
+            + "\n" + WhereClause
+            + "\nORDER BY c.last_name, c.first_name"
+            + "\nLIMIT @Limit OFFSET @Offset";
+
+        var (normalizedSearch, searchPattern) = NormalizeSearch(search);
+        var parameters = new
+        {
+            Active = active,
+            Search = normalizedSearch,
+            SearchPattern = searchPattern,
+            Limit = limit,
+            Offset = offset,
+        };
+
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        var customers = await connection.QueryAsync<Customer>(
+            new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
         return customers.ToList();
     }
 
@@ -111,4 +160,11 @@ public class CustomerRepository : ICustomerRepository
     /// <summary>Escapes LIKE wildcards so user input is matched literally.</summary>
     private static string EscapeLikePattern(string value) =>
         value.Replace("%", "\\%").Replace("_", "\\_");
+
+    /// <summary>Normalized search term plus its escaped LIKE pattern.</summary>
+    private static (string? Search, string? Pattern) NormalizeSearch(string? search)
+    {
+        var normalized = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        return (normalized, normalized is null ? null : $"%{EscapeLikePattern(normalized)}%");
+    }
 }

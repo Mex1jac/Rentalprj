@@ -54,37 +54,66 @@ public class RentalRepository : IRentalRepository
         RentalListStatus status,
         CancellationToken cancellationToken = default)
     {
-        var conditions = new List<string>
-        {
-            @"(@Search IS NULL
-               OR c.first_name LIKE @SearchPattern
-               OR c.last_name LIKE @SearchPattern
-               OR f.title LIKE @SearchPattern)",
-        };
-
-        // The status comes from our own enum (never raw user input), so these
-        // clauses are safe to inline.
-        switch (status)
-        {
-            case RentalListStatus.Open:
-                conditions.Add("r.return_date IS NULL");
-                break;
-            case RentalListStatus.Returned:
-                conditions.Add("r.return_date IS NOT NULL");
-                break;
-        }
-
-        // Bounded response: sakila ships 16k+ rentals, the list is for tracking.
+        // Bounded response: sakila ships 16k+ rentals, the unbounded mode is
+        // only kept for callers that explicitly omit the page size.
         var sql = BaseSelect
-            + "\nWHERE " + string.Join("\n  AND ", conditions)
+            + "\nWHERE " + BuildWhereClause(status)
             + "\nORDER BY r.rental_date DESC, r.rental_id DESC"
             + "\nLIMIT 500";
 
-        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        var (normalizedSearch, searchPattern) = NormalizeSearch(search);
         var parameters = new
         {
             Search = normalizedSearch,
-            SearchPattern = normalizedSearch is null ? null : $"%{EscapeLikePattern(normalizedSearch)}%",
+            SearchPattern = searchPattern,
+        };
+
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        var rentals = await connection.QueryAsync<Rental>(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+        return rentals.ToList();
+    }
+
+    public async Task<int> CountAsync(string? search, RentalListStatus status, CancellationToken cancellationToken = default)
+    {
+        // No staff join needed: the filters only touch customer and film columns.
+        var sql = """
+            SELECT COUNT(*)
+            FROM rental r
+            JOIN customer c ON c.customer_id = r.customer_id
+            JOIN inventory i ON i.inventory_id = r.inventory_id
+            JOIN film f ON f.film_id = i.film_id
+            """ + "\nWHERE " + BuildWhereClause(status);
+
+        var (normalizedSearch, searchPattern) = NormalizeSearch(search);
+        var parameters = new
+        {
+            Search = normalizedSearch,
+            SearchPattern = searchPattern,
+        };
+
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        return await connection.ExecuteScalarAsync<int>(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+    }
+
+    public async Task<IReadOnlyList<Rental>> GetPageAsync(
+        string? search,
+        RentalListStatus status,
+        int limit,
+        int offset,
+        CancellationToken cancellationToken = default)
+    {
+        var sql = BaseSelect
+            + "\nWHERE " + BuildWhereClause(status)
+            + "\nORDER BY r.rental_date DESC, r.rental_id DESC"
+            + "\nLIMIT @Limit OFFSET @Offset";
+
+        var (normalizedSearch, searchPattern) = NormalizeSearch(search);
+        var parameters = new
+        {
+            Search = normalizedSearch,
+            SearchPattern = searchPattern,
+            Limit = limit,
+            Offset = offset,
         };
 
         await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
@@ -210,6 +239,41 @@ public class RentalRepository : IRentalRepository
         await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
         return await connection.ExecuteScalarAsync<int>(
             new CommandDefinition(sql, new { CustomerId = customerId }, cancellationToken: cancellationToken));
+    }
+
+    /// <summary>
+    /// WHERE shared by the full list, the paged list and the count. The status
+    /// comes from our own enum (never raw user input), so these clauses are
+    /// safe to inline.
+    /// </summary>
+    private static string BuildWhereClause(RentalListStatus status)
+    {
+        var conditions = new List<string>
+        {
+            @"(@Search IS NULL
+               OR c.first_name LIKE @SearchPattern
+               OR c.last_name LIKE @SearchPattern
+               OR f.title LIKE @SearchPattern)",
+        };
+
+        switch (status)
+        {
+            case RentalListStatus.Open:
+                conditions.Add("r.return_date IS NULL");
+                break;
+            case RentalListStatus.Returned:
+                conditions.Add("r.return_date IS NOT NULL");
+                break;
+        }
+
+        return string.Join("\n  AND ", conditions);
+    }
+
+    /// <summary>Normalized search term plus its escaped LIKE pattern.</summary>
+    private static (string? Search, string? Pattern) NormalizeSearch(string? search)
+    {
+        var normalized = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        return (normalized, normalized is null ? null : $"%{EscapeLikePattern(normalized)}%");
     }
 
     /// <summary>Escapes LIKE wildcards so user input is matched literally.</summary>

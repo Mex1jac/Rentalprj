@@ -1,3 +1,4 @@
+import type { PagedResult } from '../../domain/entities/pagedResult'
 import type { Rental } from '../../domain/entities/rental'
 import type { RentalListQuery, RentalRepository } from '../../domain/ports/rentalRepository'
 import { mapApiError } from '../http/errorMapper'
@@ -9,6 +10,12 @@ function buildQuery(query: RentalListQuery): string {
     params.set('search', query.search)
   }
   params.set('status', query.status)
+  if (query.page !== undefined) {
+    params.set('page', String(query.page))
+  }
+  if (query.pageSize !== undefined) {
+    params.set('pageSize', String(query.pageSize))
+  }
   return `?${params.toString()}`
 }
 
@@ -17,9 +24,9 @@ function buildQuery(query: RentalListQuery): string {
  * RentalApp.Api and translates transport failures into domain errors.
  */
 export const rentalApiRepository: RentalRepository = {
-  async getAll(query) {
+  async list(query) {
     try {
-      return await api.get<Rental[]>(`/api/rentals${buildQuery(query)}`)
+      return await api.get<PagedResult<Rental>>(`/api/rentals${buildQuery(query)}`)
     } catch (error) {
       throw mapApiError(error)
     }

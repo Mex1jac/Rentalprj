@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { RentalFormValues } from '../../application/dtos/rentalDtos'
 import { createRentalService, normalizeRentalForm } from '../../application/services/rentalService'
 import type { Rental } from '../../domain/entities/rental'
+import { emptyPage } from '../../domain/entities/pagedResult'
 import { ValidationError } from '../../domain/errors/domainErrors'
 import type { RentalListQuery } from '../../domain/ports/rentalRepository'
 
@@ -15,7 +16,7 @@ const validValues: RentalFormValues = {
 
 function makeRepository() {
   return {
-    getAll: vi.fn(async (_query: RentalListQuery) => [] as Rental[]),
+    list: vi.fn(async (_query: RentalListQuery) => emptyPage<Rental>(1, 25)),
     create: vi.fn(async (_data: unknown) => [] as Rental[]),
     markReturned: vi.fn(async (_rentalId: number) => ({}) as Rental),
   }

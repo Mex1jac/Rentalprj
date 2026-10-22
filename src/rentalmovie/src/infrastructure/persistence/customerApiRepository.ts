@@ -1,4 +1,5 @@
 import type { Customer } from '../../domain/entities/customer'
+import type { PagedResult } from '../../domain/entities/pagedResult'
 import type { CustomerListQuery, CustomerRepository } from '../../domain/ports/customerRepository'
 import { mapApiError } from '../http/errorMapper'
 import { api } from '../http/httpClient'
@@ -11,6 +12,12 @@ function buildQuery(query: CustomerListQuery): string {
   if (query.active !== undefined) {
     params.set('active', String(query.active))
   }
+  if (query.page !== undefined) {
+    params.set('page', String(query.page))
+  }
+  if (query.pageSize !== undefined) {
+    params.set('pageSize', String(query.pageSize))
+  }
   const qs = params.toString()
   return qs ? `?${qs}` : ''
 }
@@ -20,9 +27,9 @@ function buildQuery(query: CustomerListQuery): string {
  * RentalApp.Api and translates transport failures into domain errors.
  */
 export const customerApiRepository: CustomerRepository = {
-  async getAll(query) {
+  async list(query) {
     try {
-      return await api.get<Customer[]>(`/api/customers${buildQuery(query)}`)
+      return await api.get<PagedResult<Customer>>(`/api/customers${buildQuery(query)}`)
     } catch (error) {
       throw mapApiError(error)
     }

@@ -35,23 +35,29 @@ afterEach(() => {
 })
 
 describe('rentalApiRepository', () => {
-  it('getAll always sends the status filter (defaults to open)', async () => {
-    const fetchMock = stubFetch([])
+  it('list always sends the status filter (defaults to open)', async () => {
+    const fetchMock = stubFetch({ items: [], page: 1, pageSize: 0, total: 0, totalPages: 1 })
 
-    await rentalApiRepository.getAll({ status: 'open' })
+    await rentalApiRepository.list({ status: 'open' })
 
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:5174/api/rentals?status=open', expect.anything())
   })
 
-  it('getAll encodes the search and status filters', async () => {
-    const fetchMock = stubFetch([])
+  it('list encodes the search, status and pagination params', async () => {
+    const fetchMock = stubFetch({ items: [], page: 3, pageSize: 50, total: 0, totalPages: 1 })
 
-    await rentalApiRepository.getAll({ search: 'mary', status: 'returned' })
+    const result = await rentalApiRepository.list({
+      search: 'mary',
+      status: 'returned',
+      page: 3,
+      pageSize: 50,
+    })
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:5174/api/rentals?search=mary&status=returned',
+      'http://localhost:5174/api/rentals?search=mary&status=returned&page=3&pageSize=50',
       expect.anything(),
     )
+    expect(result).toEqual({ items: [], page: 3, pageSize: 50, total: 0, totalPages: 1 })
   })
 
   it('create posts the batch payload and returns the created rows', async () => {

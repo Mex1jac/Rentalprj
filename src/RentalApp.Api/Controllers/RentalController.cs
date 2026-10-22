@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using RentalApp.Api.Application;
 using RentalApp.Api.Application.Dtos;
 using RentalApp.Api.Application.Services;
 using RentalApp.Api.Domain.Entities;
@@ -21,13 +22,16 @@ public class RentalController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType<IReadOnlyList<RentalDto>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<RentalDto>>> GetAll(
+    [ProducesResponseType<PagedResultDto<RentalDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResultDto<RentalDto>>> GetAll(
         [FromQuery] string? search,
         [FromQuery] RentalListStatus status = RentalListStatus.Open,
+        [FromQuery] int page = Pagination.DefaultPage,
+        [FromQuery] int? pageSize = null,
         CancellationToken cancellationToken = default)
     {
-        var rentals = await _rentalService.GetListAsync(search, status, cancellationToken);
+        var rentals = await _rentalService.GetListAsync(search, status, page, pageSize, cancellationToken);
         return Ok(rentals);
     }
 

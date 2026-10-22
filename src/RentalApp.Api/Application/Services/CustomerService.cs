@@ -25,13 +25,40 @@ public class CustomerService
         _rentalRepository = rentalRepository;
     }
 
-    public async Task<IReadOnlyList<CustomerDto>> GetListAsync(
+    public async Task<PagedResultDto<CustomerDto>> GetListAsync(
         string? search,
         bool? active,
+        int page = Pagination.DefaultPage,
+        int? pageSize = null,
         CancellationToken cancellationToken = default)
     {
-        var customers = await _customerRepository.GetAllAsync(search, active, cancellationToken);
-        return customers.Select(MapToDto).ToList();
+        Pagination.Validate(page, pageSize);
+
+        if (pageSize is null)
+        {
+            // Unbounded list, kept for callers that need every row (e.g. the
+            // rental-form member dropdown).
+            var all = await _customerRepository.GetAllAsync(search, active, cancellationToken);
+            return new PagedResultDto<CustomerDto>
+            {
+                Items = all.Select(MapToDto).ToList(),
+                Page = 1,
+                PageSize = all.Count,
+                Total = all.Count,
+            };
+        }
+
+        var total = await _customerRepository.CountAsync(search, active, cancellationToken);
+        var rows = await _customerRepository.GetPageAsync(
+            search, active, pageSize.Value, (page - 1) * pageSize.Value, cancellationToken);
+
+        return new PagedResultDto<CustomerDto>
+        {
+            Items = rows.Select(MapToDto).ToList(),
+            Page = page,
+            PageSize = pageSize.Value,
+            Total = total,
+        };
     }
 
     public async Task<CustomerDto> GetByIdAsync(ushort customerId, CancellationToken cancellationToken = default)

@@ -11,6 +11,17 @@ public interface IRentalRepository
 {
     Task<IReadOnlyList<Rental>> GetAllAsync(string? search, RentalListStatus status, CancellationToken cancellationToken = default);
 
+    /// <summary>Total rows matching the filters, for the paginated list endpoint.</summary>
+    Task<int> CountAsync(string? search, RentalListStatus status, CancellationToken cancellationToken = default);
+
+    /// <summary>One slice of the filtered list (server-side pagination).</summary>
+    Task<IReadOnlyList<Rental>> GetPageAsync(
+        string? search,
+        RentalListStatus status,
+        int limit,
+        int offset,
+        CancellationToken cancellationToken = default);
+
     Task<Rental?> GetByIdAsync(int rentalId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<Rental>> GetByIdsAsync(IReadOnlyList<int> rentalIds, CancellationToken cancellationToken = default);
