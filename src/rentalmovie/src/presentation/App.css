@@ -722,6 +722,51 @@ td.actions-col .btn-success:hover:not(:disabled) {
   color: var(--color-muted);
 }
 
+/* --- Cash close (period totals strip) --------------------------------------- */
+
+/* Inside the results card, above the per-film table. */
+.cash-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.85rem 1rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+}
+
+.stat-label {
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  /* Long money strings wrap instead of overflowing narrow screens. */
+  overflow-wrap: anywhere;
+}
+
+.stat-sub {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
 /* --- Feedback ------------------------------------------------------------- */
 
 .results-stale {
@@ -773,5 +818,10 @@ td.actions-col .btn-success:hover:not(:disabled) {
 
   .toolbar-count {
     margin-left: 0;
+  }
+
+  /* Totals stack vertically so figures stay legible on phones. */
+  .cash-totals {
+    grid-template-columns: 1fr;
   }
 }

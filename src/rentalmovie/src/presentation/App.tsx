@@ -1,21 +1,24 @@
 import { useState } from 'react'
 import './App.css'
+import type { CashCloseRepository } from '../domain/ports/cashCloseRepository'
 import type { CustomerRepository } from '../domain/ports/customerRepository'
 import type { FilmRepository } from '../domain/ports/filmRepository'
 import type { LookupRepository } from '../domain/ports/lookupRepository'
 import type { RentalRepository } from '../domain/ports/rentalRepository'
 import type { StaffRepository } from '../domain/ports/staffRepository'
+import { cashCloseApiRepository } from '../infrastructure/persistence/cashCloseApiRepository'
 import { customerApiRepository } from '../infrastructure/persistence/customerApiRepository'
 import { filmApiRepository } from '../infrastructure/persistence/filmApiRepository'
 import { lookupApiRepository } from '../infrastructure/persistence/lookupApiRepository'
 import { rentalApiRepository } from '../infrastructure/persistence/rentalApiRepository'
 import { staffApiRepository } from '../infrastructure/persistence/staffApiRepository'
+import { CashCloseView } from './views/CashCloseView'
 import { CustomersView } from './views/CustomersView'
 import { FilmsView } from './views/FilmsView'
 import { RentalsView } from './views/RentalsView'
 import { StaffView } from './views/StaffView'
 
-type View = 'staff' | 'customers' | 'rentals' | 'films'
+type View = 'staff' | 'customers' | 'rentals' | 'films' | 'cashclose'
 
 export interface AppProps {
   /**
@@ -28,6 +31,7 @@ export interface AppProps {
   customerRepository?: CustomerRepository
   rentalRepository?: RentalRepository
   filmRepository?: FilmRepository
+  cashCloseRepository?: CashCloseRepository
 }
 
 const TABS: ReadonlyArray<{ id: View; label: string }> = [
@@ -35,6 +39,7 @@ const TABS: ReadonlyArray<{ id: View; label: string }> = [
   { id: 'customers', label: 'Customers' },
   { id: 'rentals', label: 'Rentals' },
   { id: 'films', label: 'Films' },
+  { id: 'cashclose', label: 'Cash close' },
 ]
 
 export default function App({
@@ -43,6 +48,7 @@ export default function App({
   customerRepository = customerApiRepository,
   rentalRepository = rentalApiRepository,
   filmRepository = filmApiRepository,
+  cashCloseRepository = cashCloseApiRepository,
 }: AppProps) {
   const [view, setView] = useState<View>('staff')
 
@@ -116,6 +122,12 @@ export default function App({
       {view === 'films' ? (
         <div role="tabpanel" id="panel-films" aria-labelledby="tab-films">
           <FilmsView filmRepository={filmRepository} lookupRepository={lookupRepository} />
+        </div>
+      ) : null}
+
+      {view === 'cashclose' ? (
+        <div role="tabpanel" id="panel-cashclose" aria-labelledby="tab-cashclose">
+          <CashCloseView cashCloseRepository={cashCloseRepository} />
         </div>
       ) : null}
     </div>
