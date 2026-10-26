@@ -4,7 +4,7 @@ import { useFilmMutations } from '../../application/mutations/filmMutations'
 import { useFilmList } from '../../application/queries/filmQueries'
 import { useLanguages } from '../../application/queries/lookupQueries'
 import { createFilmService } from '../../application/services/filmService'
-import type { Film } from '../../domain/entities/film'
+import type { Film, FilmStatusFilter } from '../../domain/entities/film'
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '../../domain/entities/pagedResult'
 import type { FilmListQuery, FilmRepository } from '../../domain/ports/filmRepository'
 import type { LookupRepository } from '../../domain/ports/lookupRepository'
@@ -26,6 +26,8 @@ interface FilmsViewProps {
 /** Film catalog maintenance section (created by App when its tab is active). */
 export function FilmsView({ filmRepository, lookupRepository }: FilmsViewProps) {
   const [search, setSearch] = useState('')
+  // Server-side status filter (logical leave, backlog #8): 'all' is the default.
+  const [statusFilter, setStatusFilter] = useState<FilmStatusFilter>('all')
   // Server-side pagination: the backend slices and counts the rows.
   const [page, setPage] = useState(DEFAULT_PAGE)
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
@@ -45,7 +47,12 @@ export function FilmsView({ filmRepository, lookupRepository }: FilmsViewProps) 
   const deferredSearch = useDeferredValue(search)
 
   // One cache entry per filter/page combination (rule client-swr-dedup).
-  const listQuery: FilmListQuery = { search: deferredSearch || undefined, page, pageSize }
+  const listQuery: FilmListQuery = {
+    search: deferredSearch || undefined,
+    status: statusFilter,
+    page,
+    pageSize,
+  }
   const {
     films: filmPage,
     error: listError,
@@ -64,6 +71,11 @@ export function FilmsView({ filmRepository, lookupRepository }: FilmsViewProps) 
   // number may no longer exist for the new result set.
   function handleSearchChange(value: string) {
     setSearch(value)
+    setPage(DEFAULT_PAGE)
+  }
+
+  function handleStatusChange(value: FilmStatusFilter) {
+    setStatusFilter(value)
     setPage(DEFAULT_PAGE)
   }
 
@@ -118,6 +130,24 @@ export function FilmsView({ filmRepository, lookupRepository }: FilmsViewProps) 
     }
   }
 
+  async function handleToggleActive(film: Film) {
+    setPageActionError(null)
+    // Captured before the refetch: the row may leave the current filter.
+    const wasOnlyRowOnPage = filmPage.items.length === 1
+    try {
+      await mutations.setActive(film)
+      // Deactivating while filtering "Active" removes the row from this view:
+      // if it was the last one on the page, step back instead of showing an
+      // empty page.
+      if (film.active && statusFilter === 'active' && wasOnlyRowOnPage && page > 1) {
+        setPage(page - 1)
+      }
+    } catch (error) {
+      // Shown at page level: this action runs without a modal.
+      setPageActionError(errorMessage(error))
+    }
+  }
+
   return (
     <section className="view" aria-label="Films">
       <header className="hero">
@@ -149,6 +179,18 @@ export function FilmsView({ filmRepository, lookupRepository }: FilmsViewProps) 
             onChange={(event) => handleSearchChange(event.target.value)}
           />
         </label>
+        <label>
+          Status
+          <select
+            name="statusFilter"
+            value={statusFilter}
+            onChange={(event) => handleStatusChange(event.target.value as FilmStatusFilter)}
+          >
+            <option value="all">All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
         {pageError ? <p className="error-message">{pageError}</p> : null}
         {pageActionError ? <p className="error-message">{pageActionError}</p> : null}
         <p className="toolbar-count">
@@ -166,6 +208,7 @@ export function FilmsView({ filmRepository, lookupRepository }: FilmsViewProps) 
             setConfirmingFilmId(null)
             setModal({ kind: 'edit', film })
           }}
+          onToggleActive={(film) => void handleToggleActive(film)}
           onDelete={(film) => {
             setPageActionError(null)
             setConfirmingFilmId(film.filmId)

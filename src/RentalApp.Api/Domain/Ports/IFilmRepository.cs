@@ -5,14 +5,18 @@ namespace RentalApp.Api.Domain.Ports;
 /// <summary>Persistence port for the film (catalog) table.</summary>
 public interface IFilmRepository
 {
-    Task<IReadOnlyList<Film>> GetAllAsync(string? search, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Film>> GetAllAsync(
+        string? search,
+        FilmListStatus status,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Total rows matching the filters, for the paginated list endpoint.</summary>
-    Task<int> CountAsync(string? search, CancellationToken cancellationToken = default);
+    Task<int> CountAsync(string? search, FilmListStatus status, CancellationToken cancellationToken = default);
 
     /// <summary>One slice of the filtered list (server-side pagination).</summary>
     Task<IReadOnlyList<Film>> GetPageAsync(
         string? search,
+        FilmListStatus status,
         int limit,
         int offset,
         CancellationToken cancellationToken = default);
@@ -34,6 +38,12 @@ public interface IFilmRepository
 
     /// <summary>Inventory rows referencing the film (0 = safe to delete).</summary>
     Task<int> CountInventoryAsync(ushort filmId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Logical leave / reactivation (backlog #8); false when the film does
+    /// not exist.
+    /// </summary>
+    Task<bool> SetActiveAsync(ushort filmId, bool active, CancellationToken cancellationToken = default);
 
     /// <summary>Physical delete; false when the film does not exist.</summary>
     Task<bool> DeleteAsync(ushort filmId, CancellationToken cancellationToken = default);

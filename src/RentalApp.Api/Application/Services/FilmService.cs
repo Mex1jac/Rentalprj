@@ -6,9 +6,10 @@ using RentalApp.Api.Domain.Ports;
 namespace RentalApp.Api.Application.Services;
 
 /// <summary>
-/// Use cases for the film catalog page: list, create, edit and physical
-/// delete. Every rule and message is mirrored by the frontend filmService so
-/// invalid input fails fast with exactly the wording the API would return.
+/// Use cases for the film catalog page: list, create, edit, logical
+/// deactivate/reactivate and physical delete. Every rule and message is
+/// mirrored by the frontend filmService so invalid input fails fast with
+/// exactly the wording the API would return.
 /// </summary>
 public class FilmService
 {
@@ -47,6 +48,7 @@ public class FilmService
 
     public async Task<PagedResultDto<FilmDto>> GetListAsync(
         string? search,
+        FilmListStatus status = FilmListStatus.All,
         int page = Pagination.DefaultPage,
         int? pageSize = null,
         CancellationToken cancellationToken = default)
@@ -56,7 +58,7 @@ public class FilmService
         if (pageSize is null)
         {
             // Unbounded list, kept for callers that need every row.
-            var all = await _filmRepository.GetAllAsync(search, cancellationToken);
+            var all = await _filmRepository.GetAllAsync(search, status, cancellationToken);
             return new PagedResultDto<FilmDto>
             {
                 Items = all.Select(MapToDto).ToList(),
@@ -66,9 +68,9 @@ public class FilmService
             };
         }
 
-        var total = await _filmRepository.CountAsync(search, cancellationToken);
+        var total = await _filmRepository.CountAsync(search, status, cancellationToken);
         var rows = await _filmRepository.GetPageAsync(
-            search, pageSize.Value, (page - 1) * pageSize.Value, cancellationToken);
+            search, status, pageSize.Value, (page - 1) * pageSize.Value, cancellationToken);
 
         return new PagedResultDto<FilmDto>
         {
@@ -134,10 +136,27 @@ public class FilmService
         return await GetByIdAsync(filmId, cancellationToken);
     }
 
+    public async Task<FilmStatusDto> SetActiveAsync(
+        ushort filmId,
+        bool active,
+        CancellationToken cancellationToken = default)
+    {
+        // Deactivation is always allowed (backlog #8 decision): open rentals
+        // finish normally and the copies simply stop being offered.
+        var exists = await _filmRepository.SetActiveAsync(filmId, active, cancellationToken);
+        if (!exists)
+        {
+            throw new NotFoundException($"Film with id {filmId} was not found.");
+        }
+
+        return new FilmStatusDto { FilmId = filmId, Active = active };
+    }
+
     public async Task DeleteAsync(ushort filmId, CancellationToken cancellationToken = default)
     {
         // Copies in inventory carry rental history (FK RESTRICT): films with
-        // history stay in the catalog; only unused ones can be removed.
+        // history stay in the catalog; only unused ones can be removed. Films
+        // WITH copies get logically deactivated instead (SetActiveAsync).
         var copies = await _filmRepository.CountInventoryAsync(filmId, cancellationToken);
         if (copies > 0)
         {
@@ -284,5 +303,6 @@ public class FilmService
             ? []
             : film.SpecialFeaturesCsv.Split(',', StringSplitOptions.RemoveEmptyEntries),
         TotalCopies = film.TotalCopies,
+        Active = film.Active,
     };
 }

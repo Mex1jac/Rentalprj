@@ -16,6 +16,8 @@ export interface Film {
   rating: string
   specialFeatures: string[]
   totalCopies: number
+  /** False once the film has been logically deactivated (backlog #8). */
+  active: boolean
 }
 
 /** Every editable film field (no ids or derived values). */
@@ -48,3 +50,6 @@ export const FILM_SPECIAL_FEATURES = [
   'Deleted Scenes',
   'Behind the Scenes',
 ] as const
+
+/** Server-side status filter for the film list (mirrors FilmListStatus.cs). */
+export type FilmStatusFilter = 'all' | 'active' | 'inactive'

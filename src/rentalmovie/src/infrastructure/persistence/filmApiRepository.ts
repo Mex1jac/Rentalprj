@@ -9,6 +9,10 @@ function buildQuery(query: FilmListQuery): string {
   if (query.search) {
     params.set('search', query.search)
   }
+  // 'all' is the server default: skip the param to keep URLs canonical.
+  if (query.status && query.status !== 'all') {
+    params.set('status', query.status)
+  }
   if (query.page !== undefined) {
     params.set('page', String(query.page))
   }
@@ -43,6 +47,14 @@ export const filmApiRepository: FilmRepository = {
   async update(filmId, data) {
     try {
       return await api.put<Film>(`/api/films/${filmId}`, data)
+    } catch (error) {
+      throw mapApiError(error)
+    }
+  },
+
+  async setActive(filmId, active) {
+    try {
+      await api.put<{ filmId: number; active: boolean }>(`/api/films/${filmId}/active`, { active })
     } catch (error) {
       throw mapApiError(error)
     }

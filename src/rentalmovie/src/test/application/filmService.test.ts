@@ -26,6 +26,7 @@ function makeRepository() {
     list: vi.fn(async (_query: FilmListQuery) => emptyPage<Film>(1, 25)),
     create: vi.fn(async (_data: unknown) => ({}) as Film),
     update: vi.fn(async (_filmId: number, _data: unknown) => ({}) as Film),
+    setActive: vi.fn(async (_filmId: number, _active: boolean) => undefined),
     delete: vi.fn(async (_filmId: number) => undefined),
   }
 }
@@ -219,6 +220,15 @@ describe('createFilmService', () => {
       1001,
       expect.objectContaining({ title: 'ACADEMY DINOSAUR', rentalRate: 0.99 }),
     )
+  })
+
+  it('setActive passes the film id and the flag through untouched', async () => {
+    const repository = makeRepository()
+    const service = createFilmService(repository)
+
+    await service.setActive(1001, false)
+
+    expect(repository.setActive).toHaveBeenCalledWith(1001, false)
   })
 
   it('delete passes the film id through untouched', async () => {

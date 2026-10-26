@@ -18,4 +18,7 @@ public class FilmDto
     public string Rating { get; set; } = "G";
     public IReadOnlyList<string> SpecialFeatures { get; set; } = [];
     public int TotalCopies { get; set; }
+
+    /// <summary>False once the film has been logically deactivated (backlog #8).</summary>
+    public bool Active { get; set; } = true;
 }

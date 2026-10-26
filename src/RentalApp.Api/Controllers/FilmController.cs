@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using RentalApp.Api.Application;
 using RentalApp.Api.Application.Dtos;
 using RentalApp.Api.Application.Services;
+using RentalApp.Api.Domain.Entities;
 
 namespace RentalApp.Api.Controllers;
 
@@ -22,11 +23,12 @@ public class FilmController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResultDto<FilmDto>>> GetAll(
         [FromQuery] string? search,
+        [FromQuery] FilmListStatus status = FilmListStatus.All,
         [FromQuery] int page = Pagination.DefaultPage,
         [FromQuery] int? pageSize = null,
         CancellationToken cancellationToken = default)
     {
-        var films = await _filmService.GetListAsync(search, page, pageSize, cancellationToken);
+        var films = await _filmService.GetListAsync(search, status, page, pageSize, cancellationToken);
         return Ok(films);
     }
 
@@ -56,6 +58,18 @@ public class FilmController : ControllerBase
     {
         var updated = await _filmService.UpdateAsync(filmId, dto, cancellationToken);
         return Ok(updated);
+    }
+
+    [HttpPut("{filmId:int}/active")]
+    [ProducesResponseType<FilmStatusDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<FilmStatusDto>> SetActive(
+        ushort filmId,
+        FilmSetActiveDto dto,
+        CancellationToken cancellationToken)
+    {
+        var status = await _filmService.SetActiveAsync(filmId, dto.Active, cancellationToken);
+        return Ok(status);
     }
 
     [HttpDelete("{filmId:int}")]

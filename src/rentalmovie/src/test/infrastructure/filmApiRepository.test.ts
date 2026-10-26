@@ -19,6 +19,7 @@ const filmRow: Film = {
   rating: 'PG',
   specialFeatures: ['Trailers', 'Commentaries'],
   totalCopies: 4,
+  active: true,
 }
 
 /** Transport seam: the repository is tested against a stubbed fetch. */
@@ -64,6 +65,28 @@ describe('filmApiRepository', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       'http://localhost:5174/api/films?search=dino',
+      expect.anything(),
+    )
+  })
+
+  it('list encodes a non-default status filter', async () => {
+    const fetchMock = stubFetch({ items: [], page: 1, pageSize: 25, total: 0, totalPages: 1 })
+
+    await filmApiRepository.list({ status: 'inactive', page: 1, pageSize: 25 })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:5174/api/films?status=inactive&page=1&pageSize=25',
+      expect.anything(),
+    )
+  })
+
+  it('list omits the status param for the default "all" filter', async () => {
+    const fetchMock = stubFetch({ items: [], page: 1, pageSize: 25, total: 0, totalPages: 1 })
+
+    await filmApiRepository.list({ status: 'all', page: 1, pageSize: 25 })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:5174/api/films?page=1&pageSize=25',
       expect.anything(),
     )
   })
@@ -125,6 +148,17 @@ describe('filmApiRepository', () => {
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('http://localhost:5174/api/films/1001')
     expect(init.method).toBe('PUT')
+  })
+
+  it('setActive PUTs the film-specific active URL with the flag', async () => {
+    const fetchMock = stubFetch({ filmId: 1001, active: false })
+
+    await filmApiRepository.setActive(1001, false)
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('http://localhost:5174/api/films/1001/active')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(init.body)).toEqual({ active: false })
   })
 
   it('delete issues a DELETE against the film URL (204 body is ignored)', async () => {

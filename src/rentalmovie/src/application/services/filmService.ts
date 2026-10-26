@@ -143,6 +143,9 @@ export interface FilmService {
 
   update(filmId: number, values: FilmFormValues): Promise<Film>
 
+  /** Logical leave / reactivation (backlog #8): flips the film's active flag. */
+  setActive(filmId: number, active: boolean): Promise<void>
+
   delete(filmId: number): Promise<void>
 }
 
@@ -161,6 +164,10 @@ export function createFilmService(repository: FilmRepository): FilmService {
 
     async update(filmId, values) {
       return repository.update(filmId, normalizeFilmForm(values))
+    },
+
+    async setActive(filmId, active) {
+      return repository.setActive(filmId, active)
     },
 
     async delete(filmId) {

@@ -20,17 +20,13 @@ public class FilmRepository : IFilmRepository
                f.replacement_cost AS ReplacementCost,
                f.rating AS Rating,
                f.special_features AS SpecialFeaturesCsv,
+               f.active AS Active,
                (SELECT COUNT(*) FROM inventory i WHERE i.film_id = f.film_id) AS TotalCopies,
                l.name AS LanguageDisplay,
                l2.name AS OriginalLanguageDisplay
         FROM film f
         JOIN language l ON l.language_id = f.language_id
         LEFT JOIN language l2 ON l2.language_id = f.original_language_id
-        """;
-
-    /// <summary>Filters shared by the full list, the paged list and the count.</summary>
-    private const string WhereClause = """
-        WHERE (@Search IS NULL OR f.title LIKE @SearchPattern)
         """;
 
     private readonly MySqlConnectionFactory _connectionFactory;
@@ -42,9 +38,10 @@ public class FilmRepository : IFilmRepository
 
     public async Task<IReadOnlyList<Film>> GetAllAsync(
         string? search,
+        FilmListStatus status,
         CancellationToken cancellationToken = default)
     {
-        var sql = BaseSelect + "\n" + WhereClause + "\nORDER BY f.title, f.film_id";
+        var sql = BaseSelect + "\nWHERE " + BuildWhereClause(status) + "\nORDER BY f.title, f.film_id";
 
         var (normalizedSearch, searchPattern) = NormalizeSearch(search);
         var parameters = new { Search = normalizedSearch, SearchPattern = searchPattern };
@@ -55,10 +52,10 @@ public class FilmRepository : IFilmRepository
         return films.ToList();
     }
 
-    public async Task<int> CountAsync(string? search, CancellationToken cancellationToken = default)
+    public async Task<int> CountAsync(string? search, FilmListStatus status, CancellationToken cancellationToken = default)
     {
         // The filters only touch film columns, so no join is needed.
-        var sql = "SELECT COUNT(*) FROM film f" + "\n" + WhereClause;
+        var sql = "SELECT COUNT(*) FROM film f" + "\nWHERE " + BuildWhereClause(status);
 
         var (normalizedSearch, searchPattern) = NormalizeSearch(search);
         var parameters = new { Search = normalizedSearch, SearchPattern = searchPattern };
@@ -70,12 +67,13 @@ public class FilmRepository : IFilmRepository
 
     public async Task<IReadOnlyList<Film>> GetPageAsync(
         string? search,
+        FilmListStatus status,
         int limit,
         int offset,
         CancellationToken cancellationToken = default)
     {
         var sql = BaseSelect
-            + "\n" + WhereClause
+            + "\nWHERE " + BuildWhereClause(status)
             + "\nORDER BY f.title, f.film_id"
             + "\nLIMIT @Limit OFFSET @Offset";
 
@@ -181,6 +179,18 @@ public class FilmRepository : IFilmRepository
             new CommandDefinition(sql, new { FilmId = filmId }, cancellationToken: cancellationToken));
     }
 
+    public async Task<bool> SetActiveAsync(ushort filmId, bool active, CancellationToken cancellationToken = default)
+    {
+        // Logical leave (backlog #8): only the flag flips, copies and rentals
+        // are never touched.
+        const string sql = "UPDATE film SET active = @Active WHERE film_id = @FilmId";
+
+        await using var connection = await _connectionFactory.OpenConnectionAsync(cancellationToken);
+        var affectedRows = await connection.ExecuteAsync(
+            new CommandDefinition(sql, new { FilmId = filmId, Active = active }, cancellationToken: cancellationToken));
+        return affectedRows > 0;
+    }
+
     public async Task<bool> DeleteAsync(ushort filmId, CancellationToken cancellationToken = default)
     {
         // FK fk_inventory_film is RESTRICT: the service pre-checks references,
@@ -191,6 +201,31 @@ public class FilmRepository : IFilmRepository
         var affectedRows = await connection.ExecuteAsync(
             new CommandDefinition(sql, new { FilmId = filmId }, cancellationToken: cancellationToken));
         return affectedRows > 0;
+    }
+
+    /// <summary>
+    /// WHERE shared by the full list, the paged list and the count. The status
+    /// comes from our own enum (never raw user input), so these clauses are
+    /// safe to inline.
+    /// </summary>
+    private static string BuildWhereClause(FilmListStatus status)
+    {
+        var conditions = new List<string>
+        {
+            "(@Search IS NULL OR f.title LIKE @SearchPattern)",
+        };
+
+        switch (status)
+        {
+            case FilmListStatus.Active:
+                conditions.Add("f.active = 1");
+                break;
+            case FilmListStatus.Inactive:
+                conditions.Add("f.active = 0");
+                break;
+        }
+
+        return string.Join("\n  AND ", conditions);
     }
 
     /// <summary>Escapes LIKE wildcards so user input is matched literally.</summary>

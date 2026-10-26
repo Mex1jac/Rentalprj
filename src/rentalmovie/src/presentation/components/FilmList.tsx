@@ -6,6 +6,8 @@ interface FilmListProps {
   /** Row whose delete is awaiting confirmation (in-row two-step confirm). */
   confirmingFilmId: number | null
   onEdit: (film: Film) => void
+  /** Logical leave / reactivation (backlog #8): toggles the active flag. */
+  onToggleActive: (film: Film) => void
   /** First delete click: arms the confirm state for that row. */
   onDelete: (film: Film) => void
   /** Second delete click: performs the physical delete. */
@@ -18,6 +20,7 @@ export function FilmList({
   loading,
   confirmingFilmId,
   onEdit,
+  onToggleActive,
   onDelete,
   onConfirmDelete,
   onCancelConfirm,
@@ -45,12 +48,13 @@ export function FilmList({
             <th>Days</th>
             <th>Language</th>
             <th>Copies</th>
+            <th>Status</th>
             <th className="actions-col">Actions</th>
           </tr>
         </thead>
         <tbody>
           {films.map((film) => (
-            <tr key={film.filmId}>
+            <tr key={film.filmId} className={film.active ? '' : 'row-inactive'}>
               <td>{film.filmId}</td>
               <td className="cell-name">{film.title}</td>
               <td>
@@ -61,6 +65,11 @@ export function FilmList({
               <td className="cell-num">{film.rentalDurationDays}</td>
               <td>{film.language}</td>
               <td className="cell-num">{film.totalCopies}</td>
+              <td>
+                <span className={film.active ? 'badge badge-active' : 'badge badge-inactive'}>
+                  {film.active ? 'Active' : 'Inactive'}
+                </span>
+              </td>
               <td className="actions-col">
                 <button type="button" className="btn btn-secondary" onClick={() => onEdit(film)}>
                   Edit
@@ -79,9 +88,22 @@ export function FilmList({
                     </button>
                   </>
                 ) : (
-                  <button type="button" className="btn btn-danger" onClick={() => onDelete(film)}>
-                    Delete
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={() => onDelete(film)}
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      className={film.active ? 'btn btn-secondary' : 'btn btn-success'}
+                      onClick={() => onToggleActive(film)}
+                    >
+                      {film.active ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                  </>
                 )}
               </td>
             </tr>

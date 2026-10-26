@@ -62,8 +62,8 @@ public class FilmServiceTests
     [Fact]
     public async Task GetList_Paged_ReturnsEnvelopeWithMappedDtos()
     {
-        _filmRepository.Setup(r => r.CountAsync("dino", It.IsAny<CancellationToken>())).ReturnsAsync(30);
-        _filmRepository.Setup(r => r.GetPageAsync("dino", 25, 0, It.IsAny<CancellationToken>()))
+        _filmRepository.Setup(r => r.CountAsync("dino", FilmListStatus.All, It.IsAny<CancellationToken>())).ReturnsAsync(30);
+        _filmRepository.Setup(r => r.GetPageAsync("dino", FilmListStatus.All, 25, 0, It.IsAny<CancellationToken>()))
             .ReturnsAsync([SampleFilm()]);
 
         var result = await _service.GetListAsync("dino", page: 1, pageSize: 25);
@@ -75,12 +75,14 @@ public class FilmServiceTests
         Assert.Equal("PG", dto.Rating);
         // The sakila SET string is exposed as a list.
         Assert.Equal(new[] { "Trailers", "Commentaries" }, dto.SpecialFeatures);
+        // Films created before migration 004 default to active.
+        Assert.True(dto.Active);
     }
 
     [Fact]
     public async Task GetList_NoPageSize_ReturnsFullList()
     {
-        _filmRepository.Setup(r => r.GetAllAsync("dino", It.IsAny<CancellationToken>()))
+        _filmRepository.Setup(r => r.GetAllAsync("dino", FilmListStatus.All, It.IsAny<CancellationToken>()))
             .ReturnsAsync([SampleFilm(1), SampleFilm(2)]);
 
         var result = await _service.GetListAsync("dino");
@@ -88,6 +90,48 @@ public class FilmServiceTests
         Assert.Equal(2, result.Total);
         Assert.Equal(2, result.PageSize);
         Assert.Equal(1, result.TotalPages);
+    }
+
+    [Fact]
+    public async Task GetList_PassesTheStatusFilterToTheRepository()
+    {
+        _filmRepository.Setup(r => r.CountAsync(null, FilmListStatus.Inactive, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(4);
+        _filmRepository.Setup(r => r.GetPageAsync(null, FilmListStatus.Inactive, 25, 0, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([SampleFilm()]);
+
+        var result = await _service.GetListAsync(null, FilmListStatus.Inactive, page: 1, pageSize: 25);
+
+        Assert.Equal(4, result.Total);
+        _filmRepository.Verify(r => r.CountAsync(null, FilmListStatus.Inactive, It.IsAny<CancellationToken>()), Times.Once);
+        _filmRepository.Verify(
+            r => r.GetPageAsync(null, FilmListStatus.Inactive, 25, 0, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetList_DefaultsToTheAllFilter()
+    {
+        _filmRepository.Setup(r => r.CountAsync(null, FilmListStatus.All, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+        _filmRepository.Setup(r => r.GetPageAsync(null, FilmListStatus.All, 10, 0, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([SampleFilm()]);
+
+        await _service.GetListAsync(null, page: 1, pageSize: 10);
+
+        _filmRepository.Verify(r => r.CountAsync(null, FilmListStatus.All, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetById_InactiveFilm_ExposesTheFlag()
+    {
+        var inactive = SampleFilm();
+        inactive.Active = false;
+        _filmRepository.Setup(r => r.GetByIdAsync((ushort)1001, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(inactive);
+
+        var dto = await _service.GetByIdAsync(1001);
+
+        Assert.False(dto.Active);
     }
 
     [Fact]
@@ -430,6 +474,55 @@ public class FilmServiceTests
         _filmRepository.Setup(r => r.DeleteAsync((ushort)55, It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
         var ex = await Assert.ThrowsAsync<NotFoundException>(() => _service.DeleteAsync(55));
+        Assert.Equal("Film with id 55 was not found.", ex.Message);
+    }
+
+    // --- SetActive (logical leave, backlog #8) --------------------------------
+
+    [Fact]
+    public async Task SetActive_Deactivate_FlipsTheFlagAndReturnsTheStatus()
+    {
+        _filmRepository.Setup(r => r.SetActiveAsync((ushort)1001, false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var status = await _service.SetActiveAsync(1001, active: false);
+
+        Assert.Equal((ushort)1001, status.FilmId);
+        Assert.False(status.Active);
+    }
+
+    [Fact]
+    public async Task SetActive_Reactivate_FlipsTheFlagBack()
+    {
+        _filmRepository.Setup(r => r.SetActiveAsync((ushort)1001, true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var status = await _service.SetActiveAsync(1001, active: true);
+
+        Assert.True(status.Active);
+    }
+
+    [Fact]
+    public async Task SetActive_DeactivateWithOpenRentals_IsAllowed()
+    {
+        // Decision (backlog #8): open rentals never block a film's deactivation.
+        _filmRepository.Setup(r => r.SetActiveAsync((ushort)1001, false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var status = await _service.SetActiveAsync(1001, active: false);
+
+        Assert.False(status.Active);
+        // The physical delete stays untouched: deactivation never deletes.
+        _filmRepository.Verify(r => r.DeleteAsync(It.IsAny<ushort>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SetActive_UnknownFilm_ThrowsNotFound()
+    {
+        _filmRepository.Setup(r => r.SetActiveAsync((ushort)55, false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var ex = await Assert.ThrowsAsync<NotFoundException>(() => _service.SetActiveAsync(55, active: false));
         Assert.Equal("Film with id 55 was not found.", ex.Message);
     }
 }

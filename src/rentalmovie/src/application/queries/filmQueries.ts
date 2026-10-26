@@ -16,6 +16,7 @@ export const FILM_LIST_KEY_PREFIX = 'film:list:'
 export function filmListKey(query: FilmListQuery): string {
   return `${FILM_LIST_KEY_PREFIX}${JSON.stringify([
     query.search ?? null,
+    query.status ?? null,
     query.page ?? null,
     query.pageSize ?? null,
   ])}`

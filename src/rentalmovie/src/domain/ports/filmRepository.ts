@@ -1,9 +1,11 @@
 import type { PagedResult } from '../entities/pagedResult'
-import type { Film, FilmCreateData, FilmData } from '../entities/film'
+import type { Film, FilmCreateData, FilmData, FilmStatusFilter } from '../entities/film'
 
 /** Filters accepted by the film list (one cache entry per combination). */
 export interface FilmListQuery {
   search?: string
+  /** Defaults to 'all' on the server. */
+  status?: FilmStatusFilter
   /** 1-based page. Omit page AND pageSize together to get the full list. */
   page?: number
   /** One of PAGE_SIZES; required whenever page > 1. */
@@ -21,6 +23,9 @@ export interface FilmRepository {
   create(data: FilmCreateData): Promise<Film>
 
   update(filmId: number, data: FilmData): Promise<Film>
+
+  /** Logical leave / reactivation (backlog #8): flips the film's active flag. */
+  setActive(filmId: number, active: boolean): Promise<void>
 
   delete(filmId: number): Promise<void>
 }

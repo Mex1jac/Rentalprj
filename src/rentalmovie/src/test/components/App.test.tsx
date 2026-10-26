@@ -102,6 +102,7 @@ const academyFilm: Film = {
   rating: 'PG',
   specialFeatures: ['Trailers', 'Commentaries'],
   totalCopies: 4,
+  active: true,
 }
 
 function createFilmRepository() {
@@ -109,6 +110,7 @@ function createFilmRepository() {
     list: vi.fn(async () => ({ items: [academyFilm], page: 1, pageSize: 25, total: 1, totalPages: 1 })),
     create: vi.fn(async () => academyFilm),
     update: vi.fn(async () => academyFilm),
+    setActive: vi.fn(async () => undefined),
     delete: vi.fn(async () => undefined),
   }
 }

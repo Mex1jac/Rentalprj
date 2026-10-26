@@ -40,6 +40,12 @@ export function useFilmMutations(service: FilmService) {
       return updated
     },
 
+    async setActive(film: Film): Promise<void> {
+      // Logical leave / reactivation: toggle against the current state.
+      await service.setActive(film.filmId, !film.active)
+      await revalidateLists()
+    },
+
     async delete(filmId: number): Promise<void> {
       await service.delete(filmId)
       await revalidateLists()

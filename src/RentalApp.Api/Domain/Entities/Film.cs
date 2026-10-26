@@ -21,6 +21,12 @@ public class Film
     /// </summary>
     public string? SpecialFeaturesCsv { get; set; }
 
+    /// <summary>
+    /// Logical leave flag (backlog #8): inactive films leave the rental
+    /// picker but keep their copies, rentals and cash-close history.
+    /// </summary>
+    public bool Active { get; set; } = true;
+
     // Display-only fields populated by repository joins (never persisted by the domain).
     public int TotalCopies { get; set; }
     public string LanguageDisplay { get; set; } = string.Empty;

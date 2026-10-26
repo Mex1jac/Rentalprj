@@ -28,6 +28,7 @@ const dinosaur: Film = {
   rating: 'PG',
   specialFeatures: ['Trailers', 'Commentaries'],
   totalCopies: 4,
+  active: true,
 }
 
 const languages = [
@@ -76,6 +77,9 @@ function createFilmRepository() {
     update: vi.fn(async (filmId: number, data) => {
       filmRows = filmRows.map((row) => (row.filmId === filmId ? { ...row, ...data } : row))
       return filmRows.find((row) => row.filmId === filmId)!
+    }),
+    setActive: vi.fn(async (filmId: number, active: boolean) => {
+      filmRows = filmRows.map((row) => (row.filmId === filmId ? { ...row, active } : row))
     }),
     delete: vi.fn(async (filmId: number) => {
       filmRows = filmRows.filter((row) => row.filmId !== filmId)
@@ -340,5 +344,76 @@ describe('Films view pagination', () => {
     // The only row of page 2 is gone, so the view steps back to page 1.
     expect(await screen.findByText('1–10 of 10 · Page 1 of 1')).toBeInTheDocument()
     expect(screen.getByText('Film 1')).toBeInTheDocument()
+  })
+})
+
+describe('Films view status (logical leave, backlog #8)', () => {
+  it('shows the Active badge for an active film', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await user.click(screen.getByRole('tab', { name: 'Films' }))
+
+    const row = (await screen.findByText('ACADEMY DINOSAUR')).closest('tr')!
+    expect(within(row).getByText('Active')).toBeInTheDocument()
+    expect(row).not.toHaveClass('row-inactive')
+  })
+
+  it('passes the status filter to the repository', async () => {
+    const user = userEvent.setup()
+    const { filmRepository } = renderApp()
+    await user.click(screen.getByRole('tab', { name: 'Films' }))
+    await screen.findByText('ACADEMY DINOSAUR')
+
+    await user.selectOptions(screen.getByLabelText('Status'), 'inactive')
+
+    await waitFor(() =>
+      expect(filmRepository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'inactive', page: 1 }),
+      ),
+    )
+  })
+
+  it('deactivates a film: badge flips and the port receives active=false', async () => {
+    const user = userEvent.setup()
+    const { filmRepository } = renderApp()
+    await user.click(screen.getByRole('tab', { name: 'Films' }))
+    await screen.findByText('ACADEMY DINOSAUR')
+
+    const row = screen.getByText('ACADEMY DINOSAUR').closest('tr')!
+    await user.click(within(row).getByRole('button', { name: 'Deactivate' }))
+
+    await waitFor(() => expect(filmRepository.setActive).toHaveBeenCalledWith(1001, false))
+    expect(await within(screen.getByRole('table')).findByText('Inactive')).toBeInTheDocument()
+  })
+
+  it('reactivates an inactive film through the same toggle', async () => {
+    const user = userEvent.setup()
+    const { filmRepository } = renderApp()
+    filmRows = [{ ...dinosaur, active: false }]
+    await user.click(screen.getByRole('tab', { name: 'Films' }))
+    await screen.findByText('ACADEMY DINOSAUR')
+
+    const row = screen.getByText('ACADEMY DINOSAUR').closest('tr')!
+    expect(within(row).getByText('Inactive')).toBeInTheDocument()
+    await user.click(within(row).getByRole('button', { name: 'Reactivate' }))
+
+    await waitFor(() => expect(filmRepository.setActive).toHaveBeenCalledWith(1001, true))
+  })
+
+  it('surfaces a deactivate error at page level without a modal', async () => {
+    const user = userEvent.setup()
+    const { filmRepository } = renderApp()
+    filmRepository.setActive.mockImplementationOnce(async () => {
+      throw new ConflictError('Film with id 1001 was not found.')
+    })
+    await user.click(screen.getByRole('tab', { name: 'Films' }))
+    await screen.findByText('ACADEMY DINOSAUR')
+
+    const row = screen.getByText('ACADEMY DINOSAUR').closest('tr')!
+    await user.click(within(row).getByRole('button', { name: 'Deactivate' }))
+
+    expect(await screen.findByText('Film with id 1001 was not found.')).toBeInTheDocument()
+    // The row keeps its previous state: the toggle failed.
+    expect(within(screen.getByRole('table')).getByText('Active')).toBeInTheDocument()
   })
 })

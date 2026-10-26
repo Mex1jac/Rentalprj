@@ -25,6 +25,7 @@ const sampleFilm: Film = {
   rating: 'PG',
   specialFeatures: ['Trailers', 'Commentaries'],
   totalCopies: 4,
+  active: true,
 }
 
 function renderForm(overrides: Partial<Parameters<typeof FilmForm>[0]> = {}) {

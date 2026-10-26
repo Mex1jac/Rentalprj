@@ -97,6 +97,7 @@ public class LookupRepository : ILookupRepository
         // Films stocked at the store with their copies currently on rental.
         // Films with zero available copies are included on purpose: the rental
         // form hides them, but the use case needs their title for error messages.
+        // Deactivated films (logical leave, backlog #8) never reach the form.
         var sql = """
             SELECT f.film_id AS FilmId,
                    f.title AS Title,
@@ -106,6 +107,7 @@ public class LookupRepository : ILookupRepository
             FROM film f
             JOIN inventory i ON i.film_id = f.film_id AND i.store_id = @StoreId
             LEFT JOIN rental r ON r.inventory_id = i.inventory_id AND r.return_date IS NULL
+            WHERE f.active = 1
             GROUP BY f.film_id, f.title, f.rental_duration, f.rental_rate
             ORDER BY f.title
             """;

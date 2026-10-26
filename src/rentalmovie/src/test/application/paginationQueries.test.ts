@@ -38,18 +38,19 @@ describe('list cache keys with pagination', () => {
     )
   })
 
-  it('film keys differ per page, page size and search', () => {
-    const base = { search: 'dino', page: 1, pageSize: 25 }
+  it('film keys differ per page, page size, search and status', () => {
+    const base = { search: 'dino', status: 'all' as const, page: 1, pageSize: 25 }
 
     expect(filmListKey(base)).not.toBe(filmListKey({ ...base, page: 2 }))
     expect(filmListKey(base)).not.toBe(filmListKey({ ...base, pageSize: 50 }))
     expect(filmListKey(base)).not.toBe(filmListKey({ ...base, search: 'ace' }))
+    expect(filmListKey(base)).not.toBe(filmListKey({ ...base, status: 'active' }))
     expect(filmListKey(base)).toBe(filmListKey({ ...base }))
   })
 
   it('film keys keep the filter parts in the same order', () => {
-    expect(filmListKey({ search: 'dino', page: 2, pageSize: 50 })).toBe(
-      'film:list:["dino",2,50]',
+    expect(filmListKey({ search: 'dino', status: 'all', page: 2, pageSize: 50 })).toBe(
+      'film:list:["dino","all",2,50]',
     )
   })
 })
